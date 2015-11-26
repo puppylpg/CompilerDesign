@@ -1,0 +1,80 @@
+const init = -1;
+var ch : char; top, length, i : integer; s : array [20] of char; stack : array [10] of integer;
+
+procedure getchar;
+begin
+	read(ch);
+	if ch = 1 then
+	begin
+		getchar
+	end	
+end;
+
+procedure gets;
+begin
+	length := length + 1;
+	getchar;
+	s[length] := ch;
+	if ch <> init then
+	begin
+		gets
+	end
+end;
+
+procedure cal(ch : char);
+begin
+	case ch of 
+	'a' : 
+		begin
+			stack[top-1] := stack[top] + stack[top-1];
+			top := top - 1
+		end;
+	'b' : 
+		begin
+			stack[top-1] := stack[top-1] - stack[top];
+			top := top - 1
+		end;
+	'c' :
+		begin
+			stack[top-1] := stack[top] * stack[top-1];
+			top := top - 1
+		end;
+	'd' : 
+		begin
+			stack[top-1] := stack[top-1] / stack[top];
+			top := top - 1
+		end
+	end
+end;
+
+function isOp(var ch : char) : integer;
+begin
+	isOp := 0;	
+	case ch of
+	'a' : isOp := 1;
+	'b' : isOp := 1;
+	'c' : isOp := 1;
+	'd' : isOp := 1
+	end
+end;
+
+begin
+	top := init;
+	length := init;
+	gets;
+	
+	for i := 0 to length - 1 do
+	begin
+		if isOp(s[i]) <> 1 then
+		begin
+			top := top + 1;
+			stack[top] := s[i] - '0'		
+		end
+		else
+		begin
+			cal(s[i]);
+		end
+	end;
+	
+	write("results: ", stack[top])
+end.
