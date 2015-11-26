@@ -1,3 +1,14 @@
+# Liu Haibo's
+.gitignore
+obj
+src
+bin
+.directory
+*.cbp
+*.depend
+*.layout
+
+
 # Compiled Object files
 *.slo
 *.lo
