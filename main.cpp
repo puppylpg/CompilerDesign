@@ -8,6 +8,7 @@
 #include "Token.h"
 #include "Syntax.h"
 #include "Error.h"
+#include "SymTable.h"
 
 
 using namespace std;

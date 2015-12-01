@@ -12,6 +12,7 @@ bool last_is_character = false, left_right_single_quotation = false;
 
 void createTables()
 {
+    //初始化revWord，记录保留字
     revWord["procedure"] = "PROCEDURE";
     revWord["function"] = "FUNCTION";
     revWord["const"] = "CONST";
@@ -33,6 +34,7 @@ void createTables()
     revWord["to"] = "TO";
     revWord["do"] = "DO";
 
+    //初始化charSymb，记录符号
     //. , ' [ ] ( ) : = < > ; " + - * /
     charSymb['.'] = "PERIOD";
     charSymb[','] = "COMMA";
@@ -70,7 +72,7 @@ void getch()
     }
 }
 
-void print(string s1, string s2)
+void printToken(string s1, string s2)
 {
     // cout << ++counter << " " << s1 << " " << s2 << endl;
 }
@@ -86,7 +88,7 @@ void getToken()
     if(last_is_character && left_right_single_quotation){  //上一个是左单引号
         last_is_character = false;
         symbol = "CHARACTER";
-        while(ch != '\''){              //获取字符内容（理论上字符串内应该就一个）
+        while(ch != '\''){              //获取字符内容（理论上单引号内应该就一个字符）
             token += ch;
             getch();
         }
@@ -110,11 +112,11 @@ void getToken()
         map<string, string>::iterator it = revWord.find(token);
         if(it != revWord.end()){        //找到，是保留字
             symbol = it->second;
-            print(symbol, token);
+            printToken(symbol, token);
         }
         else{                           //不是保留字，是标识符
             symbol = "IDENTIFIER";
-            print(symbol, token);
+            printToken(symbol, token);
         }
     }
     else if( NUM(ch) ){
@@ -125,7 +127,7 @@ void getToken()
         }
 
         symbol = "NUMBER";
-        print(symbol, token);
+        printToken(symbol, token);
     }
     else if(ch == ':'){
         token += ch;
@@ -134,7 +136,7 @@ void getToken()
         if(ch == '='){
             symbol = "ASSIGNSY";            //:=
             token += ch;
-            print(symbol, ":=");
+            printToken(symbol, ":=");
             getch();                    //else语句中不能再放getch()了，下一个字符已经被读过了
         }
         else{
@@ -149,13 +151,13 @@ void getToken()
         if(ch == '='){
             symbol = "LEQ";                 //<=
             token += ch;
-            print(symbol, "<=");
+            printToken(symbol, "<=");
             getch();                                //!!!!!!!!!!!
         }
         else if(ch == '>'){
             symbol = "NEQ";                 //<>
             token += ch;
-            print(symbol, "<>");
+            printToken(symbol, "<>");
             getch();                                //!!!!!!!!!!!
         }
         else{
@@ -170,7 +172,7 @@ void getToken()
         if(ch == '='){
             symbol = "GEQ";                 //>=
             token += ch;
-            print(symbol, ">=");
+            printToken(symbol, ">=");
             getch();                                //!!!!!!!!!!!
         }
         else{

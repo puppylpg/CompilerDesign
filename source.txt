@@ -68,7 +68,7 @@ begin
 		if isOp(s[i]) <> 1 then
 		begin
 			top := top + 1;
-			stack[top] := s[i] - '0'		
+			stack[top] := s[i] - 0		
 		end
 		else
 		begin

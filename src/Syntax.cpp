@@ -1,6 +1,7 @@
 #include "Syntax.h"
 #include "Token.h"
 #include "Error.h"
+#include "SymTable.h"
 
 void proced();               //程序
 void subproced();            //分程序
@@ -38,6 +39,11 @@ void forStatement(); //for循环语句
 
 
 
+void printStatement(string s)
+{
+//    cout << s << endl;
+}
+
 //是否需要调用getToken():
 //eg:当判断完token == "if"之后，需要调用getToken();
 //eg:当判断完constDeclare()之后，不需要调用getToken().
@@ -50,18 +56,18 @@ void proced()               //程序
         error(Ending);         //error:程序不正确的结束方式
     }
 
-    cout << "This is a proced statement!" << endl;
+    printStatement("This is a proced statement!");
 }
 
 void subproced()            //分程序
 {
     if(token == "const"){   //常量说明部分
 //        getToken();           //进入常数说明部分还会再次判断是否是const，所以这里先不读取下一个token
+                                //否则，相当于重复判断了关键词“const”(特点：这是本身可有可无的语句，所以判断起来比较特别)
+                                //更确切的说，主要原因是因为我没有对文法进行显式的合并（提取first集公因式）
         constDeclare();
     }
     if(token == "var"){     //变量说明部分
-//        getToken();
-            //否则，相当于重复判断了关键词"var"(特点：这是本身可有可无的语句，所以判断起来比较特别)
         varDeclare();
     }
     while(token == "procedure" || token == "function"){
@@ -69,14 +75,14 @@ void subproced()            //分程序
 //            getToken();
             procedureDeclare(); //过程说明部分
         }
-        if(token == "function"){
+        else if(token == "function"){
 //            getToken();
             functionDeclare();  //函数说明部分
         }
     }
     multiStatement();       //复合语句
 
-    cout << "This is a subproced statement!" << endl;
+    printStatement("This is a subproced statement!");
 }
 
 void constDeclare()     //常量说明部分
@@ -95,12 +101,13 @@ void constDeclare()     //常量说明部分
     else{
         getToken();
     }
-    cout << "This is a constDeclare statement!" << endl;
+    printStatement("This is a constDeclare statement!");
 }
 
 void constDefine()      //常量定义
 {
-    identifier();       //标识符
+    string itemName;
+    itemName = identifier();       //标识符
     if(token != "="){
         error(Equal);     //error:初始化应该用等号
     }
@@ -109,11 +116,14 @@ void constDefine()      //常量定义
         constant();     //常量
     }
 
-    cout << "This is a constDefine statement!" << endl;
+    printStatement("This is a constDefine statement!");
 }
 
-void identifier()       //标识符定义
+string identifier()       //标识符定义
 {
+    string itemName;
+    itemName.clear();
+    bool wrong = false;
     string::iterator it;
     if( !LETTER(*token.begin()) ){
         error(Only_letter);     //error:标识符要以字母开头
@@ -122,12 +132,18 @@ void identifier()       //标识符定义
         for(it = token.begin() + 1; it != token.end(); ++it){
             if( !NUM_LETTER(*it) ){
                 error(Only_letter_number);     //error:标识符只能由字母／数字组成
+                wrong = true;
+                break;
             }
+        }
+        if(!wrong){
+            itemName = token;
         }
     }
     getToken();
 
-    cout << "This is a identifier statement!" << endl;
+    printStatement("This is a identifier statement!");
+    return itemName;
 }
 
 void constant()         //常量定义  ?????我将符号和数字分开返回了
@@ -142,7 +158,7 @@ void constant()         //常量定义  ?????我将符号和数字分开返回�
         unsignedInteger();
     }
 
-    cout << "This is a constant statement!" << endl;
+    printStatement("This is a constant statement!");
 }
 
 void isCharacter()  //字符
@@ -166,7 +182,7 @@ void isCharacter()  //字符
         }
     }
 
-    cout << "This is a isCharacter statement!" << endl;
+    printStatement("This is a isCharacter statement!");
 }
 
 void unsignedInteger()          //无符号整数
@@ -179,7 +195,7 @@ void unsignedInteger()          //无符号整数
     }
     getToken();
 
-    cout << "This is a unsignedInteger statement!" << endl;
+    printStatement("This is a unsignedInteger statement!");
 }
 
 void varDeclare()           //变量说明部分
@@ -207,7 +223,7 @@ void varDeclare()           //变量说明部分
             }
     }
 
-    cout << "This is a varDeclare statement!" << endl;
+    printStatement("This is a varDeclare statement!");
 }
 
 void varDefine()        //变量说明（定义）
@@ -226,7 +242,7 @@ void varDefine()        //变量说明（定义）
         type();
     }
 
-    cout << "This is a varDefine statement!" << endl;
+    printStatement("This is a varDefine statement!");
 }
 
 void type()     //类型
@@ -268,7 +284,7 @@ void type()     //类型
         getToken();
     }
 
-    cout << "This is a type statement!" << endl;
+    printStatement("This is a type statement!");
 }
 
 void procedureDeclare() //过程说明部分
@@ -283,7 +299,7 @@ void procedureDeclare() //过程说明部分
         }
     }
 
-    cout << "This is a procedureDeclare statement!" << endl;
+    printStatement("This is a procedureDeclare statement!");
 }
 
 void procedureHead()    //过程首部
@@ -320,7 +336,7 @@ void parameterTable()   //形式参数表
         }
     }
 
-    cout << "This is a parameterTable statement!" << endl;
+    printStatement("This is a parameterTable statement!");
 }
 
 void parameterSegment() //形式参数段
@@ -345,7 +361,7 @@ void parameterSegment() //形式参数段
         }
     }
 
-    cout << "This is a parameterSegment statement!" << endl;
+    printStatement("This is a parameterSegment statement!");
 }
 
 void functionDeclare()  //函数说明部分
@@ -360,7 +376,7 @@ void functionDeclare()  //函数说明部分
         }
     }
 
-    cout << "This is a functionDeclare statement!" << endl;
+    printStatement("This is a functionDeclare statement!");
 }
 
 void functionHead()     //函数首部
@@ -391,7 +407,7 @@ void functionHead()     //函数首部
         }
     }
 
-    cout << "This is a functionHead statement!" << endl;
+    printStatement("This is a functionHead statement!");
 }
 
 void multiStatement()   //复合语句
@@ -414,7 +430,7 @@ void multiStatement()   //复合语句
         }
     }
 
-    cout << "This is a multiStatement statement!" << endl;
+    printStatement("This is a multiStatement statement!");
 }
 
 void statement()    //语句
@@ -450,7 +466,7 @@ void statement()    //语句
         ;   //空循环语句
     }
 
-    cout << "This is a statement statement!" << endl;
+    printStatement("This is a statement statement!");
 }
 
 void assignStatementLeft()  //复制调用语句后半部分
@@ -477,7 +493,7 @@ void assignStatementLeft()  //复制调用语句后半部分
         }
     }
 
-    cout << "This is a assignStatement statement!" << endl;
+    printStatement("This is a assignStatement statement!");
 }
 
 void expression()   //表达式
@@ -491,7 +507,7 @@ void expression()   //表达式
         term();
     }
 
-    cout << "This is a expression statement!" << endl;
+    printStatement("This is a expression statement!");
 }
 
 void term() //项
@@ -502,7 +518,7 @@ void term() //项
         factor();
     }
 
-    cout << "This is a term statement!" << endl;
+    printStatement("This is a term statement!");
 }
 
 void factor()   //因子
@@ -540,7 +556,7 @@ void factor()   //因子
         unsignedInteger();
     }
 
-    cout << "This is a factor statement!" << endl;
+    printStatement("This is a factor statement!");
 }
 
 void realParameterTable()   //实在参数表
@@ -560,14 +576,14 @@ void realParameterTable()   //实在参数表
         }
     }
 
-    cout << "This is a realParameterTable statement!" << endl;
+    printStatement("This is a realParameterTable statement!");
 }
 
 void realParameter()    //实在参数
 {
     expression();
 
-    cout << "This is a realParameter statement!" << endl;
+    printStatement("This is a realParameter statement!");
 }
 
 void conditionStatement()   //条件语句
@@ -588,7 +604,7 @@ void conditionStatement()   //条件语句
         }
     }
 
-    cout << "This is a conditionStatement statement!" << endl;
+    printStatement("This is a conditionStatement statement!");
 }
 
 void condition()    //条件
@@ -604,7 +620,7 @@ void condition()    //条件
         expression();
     }
 
-    cout << "This is a condition statement!" << endl;
+    printStatement("This is a condition statement!");
 }
 
 void statusStatement()  //情况语句
@@ -631,7 +647,7 @@ void statusStatement()  //情况语句
         }
     }
 
-    cout << "This is a statusStatement statement!" << endl;
+    printStatement("This is a statusStatement statement!");
 }
 
 void conditionTableElement()    //情况表元素
@@ -645,7 +661,7 @@ void conditionTableElement()    //情况表元素
         statement();
     }
 
-    cout << "This is a conditionTableElement statement!" << endl;
+    printStatement("This is a conditionTableElement statement!");
 }
 
 void readStatement()
@@ -671,7 +687,7 @@ void readStatement()
         }
     }
 
-    cout << "This is readStatement statement!" << endl;
+    printStatement("This is a readStatement statement!");
 }
 
 void writeStatement()
@@ -711,7 +727,7 @@ void writeStatement()
         }
     }
 
-    cout << "This is a writeStatement statement!" << endl;
+    printStatement("This is a writeStatement statement!");
 }
 
 void isString() //字符串
@@ -734,7 +750,7 @@ void isString() //字符串
         }
     }
 
-    cout << "This is a isString statement!" << endl;
+    printStatement("This is a isString statement!");
 }
 
 void forStatement() //for循环语句
@@ -765,5 +781,5 @@ void forStatement() //for循环语句
         }
     }
 
-    cout << "This is a forStatement statement!" << endl;
+    printStatement("This is a forStatement statement!");
 }
