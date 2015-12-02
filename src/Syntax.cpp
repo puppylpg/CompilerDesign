@@ -3,23 +3,30 @@
 #include "Error.h"
 #include "SymTable.h"
 
+#include <cstdlib>          ///atoi
+#include <vector>
+
+bool isChar;              ///判断基本类型(const或者函数的返回值)是integer还是char
+int length;               ///判断var是不是数组
+
+
 void proced();               //程序
 void subproced();            //分程序
-void constDeclare();     //常量说明部分
-void constDefine();      //常量定义
-void identifier();       //标识符定义
-void constant();         //常量定义
-void isCharacter();  //字符
-void unsignedInteger();          //无符号整数
+void constDeclare();        //常量说明部分
+void constDefine();         //常量定义
+string identifier();        //标识符定义
+int constant();            //常量定义
+int isCharacter();          //字符
+int unsignedInteger();          //无符号整数
 void varDeclare();           //变量说明部分
 void varDefine();
-void type();     //类型
+void type_all();     //类型
 void procedureDeclare(); //过程说明部分
-void procedureHead();    //过程首部
+Node* procedureHead();    //过程首部
 void parameterTable();   //形式参数表
 void parameterSegment(); //形式参数段
 void functionDeclare();  //函数说明部分
-void functionHead();     //函数首部
+Node* functionHead();     //函数首部
 void multiStatement();   //复合语句
 void statement();    //语句
 void assignStatementLeft();  //复制调用语句后半部分
@@ -44,6 +51,16 @@ void printStatement(string s)
 //    cout << s << endl;
 }
 
+bool judgeIsChar()
+{
+    if(token == "char"){
+        return true;
+    }
+    else{
+        return false;
+    }
+}
+
 //是否需要调用getToken():
 //eg:当判断完token == "if"之后，需要调用getToken();
 //eg:当判断完constDeclare()之后，不需要调用getToken().
@@ -51,6 +68,9 @@ void printStatement(string s)
 //结束前，会自动准备好下一次的token，因此函数调用前不需要再getToken()了。
 void proced()               //程序
 {
+    root = initSymTable();   ///
+    curNode = root;
+
     subproced();            //分程序
     if(token != "."){
         error(Ending);         //error:程序不正确的结束方式
@@ -106,15 +126,21 @@ void constDeclare()     //常量说明部分
 
 void constDefine()      //常量定义
 {
-    string itemName;
+    string itemName;                ///常量对象的属性
+    string type = "CONST";          ///name/type/isChar/num
+    int num;
+
     itemName = identifier();       //标识符
     if(token != "="){
         error(Equal);     //error:初始化应该用等号
     }
     else{
         getToken();
-        constant();     //常量
+        num = constant();     //常量
     }
+
+    ConstItem item(itemName, type, isChar, num);        ///创建一个常量对象
+    enterItem(itemName, &item);                          ///将对象加入curItems
 
     printStatement("This is a constDefine statement!");
 }
@@ -122,8 +148,8 @@ void constDefine()      //常量定义
 string identifier()       //标识符定义
 {
     string itemName;
-    itemName.clear();
     bool wrong = false;
+
     string::iterator it;
     if( !LETTER(*token.begin()) ){
         error(Only_letter);     //error:标识符要以字母开头
@@ -146,23 +172,38 @@ string identifier()       //标识符定义
     return itemName;
 }
 
-void constant()         //常量定义  ?????我将符号和数字分开返回了
+int constant()         //常量定义  ?????我将符号和数字分开返回了
 {
+    int num;
+    int flag;
+
     if(token == "'"){         //是字符(字母或数字)
-        isCharacter();
+        num = isCharacter();    ///
+        isChar = true;          ///保留isChar
     }
     else{
         if(token == "+" || token == "-"){
+            if(token == "+"){   ///保留符号
+                flag = 1;
+            }
+            else{
+                flag = -1;
+            }
             getToken();
         }
-        unsignedInteger();
+        num = unsignedInteger();
+        isChar = false;
+        num *= flag;            ///计算最终数字
     }
 
     printStatement("This is a constant statement!");
+    return num;
 }
 
-void isCharacter()  //字符
+int isCharacter()  //字符
 {
+    int num;
+
     if(token == "'"){
         getToken();
         if(token.size() > 1){
@@ -172,6 +213,7 @@ void isCharacter()  //字符
             error(Not_letter_number); //error:不是字母或数字
         }
         else{           //是字母或数字
+            num = token.c_str()[0];   ///保留字母或字符数字的ASCII到int num
             getToken();
             if( token != "'"){
                 error(Single_quotation); //error:缺少右侧"'"
@@ -183,19 +225,24 @@ void isCharacter()  //字符
     }
 
     printStatement("This is a isCharacter statement!");
+    return num;
 }
 
-void unsignedInteger()          //无符号整数
+int unsignedInteger()          //无符号整数
 {
+    int num;
+
     string::iterator it;
     for(it = token.begin(); it != token.end(); ++it){
         if( !NUM(*it) ){
             error(Only_number);     //error:无符号整数只能由数字组成
         }
     }
+    num = atoi(token.c_str());      ///string to char* then to int
     getToken();
 
     printStatement("This is a unsignedInteger statement!");
+    return num;
 }
 
 void varDeclare()           //变量说明部分
@@ -228,10 +275,16 @@ void varDeclare()           //变量说明部分
 
 void varDefine()        //变量说明（定义）
 {
-    identifier();
+    vector<string> itemNames;///变量[数组]对象的属性
+    string type = "VAR";
+    bool passByAddr = false;
+                            ///变量：name/type/isChar/passByAddr
+                            ///数组：name/type/isChar/length
+
+    itemNames.push_back(identifier());
     while(token == ","){
         getToken();
-        identifier();
+        itemNames.push_back(identifier());
     }
 
     if(token != ":"){
@@ -239,13 +292,26 @@ void varDefine()        //变量说明（定义）
     }
     else{
         getToken();
-        type();
+        type_all();
     }
 
     printStatement("This is a varDefine statement!");
+
+    ///为变量[数组]创建符号表项到curItems
+    vector<string>::iterator it;
+    for(it = itemNames.begin(); it != itemNames.end(); it++){   ///遍历每一个名字
+        if(length != 0){            ///是数组
+            ArrayItem item(*it, type, isChar, length);
+            enterItem(*it, &item);           ///将创建的表项加入curItems
+        }
+        else{                       ///不是数组，是变量
+            VarItem item(*it, type, isChar, passByAddr);
+            enterItem(*it, &item);           ///将创建的表项加入curItems
+        }
+    }
 }
 
-void type()     //类型
+void type_all()     //类型
 {
     if(token != "integer" && token != "char"){
         if(token != "array"){
@@ -258,7 +324,7 @@ void type()     //类型
             }
             else{           //不缺'['
                 getToken();
-                unsignedInteger();
+                length = unsignedInteger();     ///记录数组长度length
                 if(token != "]"){
                     error(Right_bracket); //error:array缺少']'
                 }
@@ -273,6 +339,7 @@ void type()     //类型
                             error(Not_basicType); //error:不是基本类型
                         }
                         else{           //不缺基本类型
+                            isChar = judgeIsChar(); ///isChar
                             getToken();
                         }
                     }
@@ -281,6 +348,8 @@ void type()     //类型
         }
     }
     else{               //是基本类型
+        isChar = judgeIsChar();  ///isChar
+        length = 0;              ///说明不是数组 important！！！！！！！
         getToken();
     }
 
@@ -289,24 +358,54 @@ void type()     //类型
 
 void procedureDeclare() //过程说明部分
 {
-    procedureHead();
-    subproced();
-    while(token == ";"){
-        getToken();
-        if(token == "procedure"){
-            procedureHead();
-            subproced();
+
+///语法分析时的版本
+//    procedureHead();
+//    subproced();
+//    while(token == ";"){
+//        getToken();
+//        if(token == "procedure"){
+//            procedureHead();
+//            subproced();
+//        }
+//    }
+
+///登记符号表时新简化版本
+    do{
+        formerNode = curNode;                             ///formerNode指向当前节点
+        Node *childNode = procedureHead();          ///当前节点指向新建的节点item，childNode指针指向item
+        string childName = childNode->getName();    ///获取子节点名字
+        formerNode->addChilds(childName, childNode);      ///将子节点加入当前节点的childs
+        curNode->setParent(formerNode);                   ///子节点的parent指向父节点
+
+        subproced();
+
+        curNode = curNode->getParent();             ///子程序结束，回到父节点，相当于弹栈
+
+        if(token == ";"){
+            getToken();
         }
-    }
+        else{
+            error(Semicolon);
+        }
+    }while(token == "procedure");
 
     printStatement("This is a procedureDeclare statement!");
 }
 
-void procedureHead()    //过程首部
+Node* procedureHead()    //过程首部
 {
+    string itemName;            ///过程
+    string type = "PROCEDURE";  ///name/type/curItems/childs/parent
+
+    Node item;                  ///新建节点
+    curNode = &item;            ///当前指针指向新建立的节点
+    item.setType(type);         ///
+
     if(token == "procedure"){
         getToken();
-        identifier();
+        itemName = identifier();
+        item.setName(itemName); ///
         if(token == "("){
             parameterTable();
         }
@@ -316,7 +415,12 @@ void procedureHead()    //过程首部
         else{
             getToken();
         }
+        return curNode;
     }
+
+    printStatement("This is a procedureHead statement!");
+
+    return curNode;
 }
 
 void parameterTable()   //形式参数表
@@ -341,12 +445,18 @@ void parameterTable()   //形式参数表
 
 void parameterSegment() //形式参数段
 {
+    vector<string> itemNames;   ///形参
+    string type = "VAR";        ///形参表内的类型是var
+    bool passByAddr = false;
+                    ///name/type/isChar/passByAddr
+
     if(token == "var"){
+        passByAddr = true;      ///
         getToken();
     }
-    identifier();
+    itemNames.push_back(identifier());
     while(token == ","){
-        identifier();
+        itemNames.push_back(identifier());
     }
     if(token != ":"){
         error(Colon); //error:形式参数段缺少':'
@@ -357,45 +467,84 @@ void parameterSegment() //形式参数段
             error(Not_basicType); //不是基本类型
         }
         else{
+            isChar = judgeIsChar();     ///
             getToken();
         }
     }
 
     printStatement("This is a parameterSegment statement!");
+
+    vector<string>::iterator it;      ///登记形参到当前子程序的符号表
+    for(it = itemNames.begin(); it != itemNames.end(); it++){
+        VarItem item(*it, type, isChar, passByAddr);
+        enterItem(*it, &item);
+    }
 }
 
 void functionDeclare()  //函数说明部分
 {
-    functionHead();
-    subproced();
-    while(token == ";"){
-        getToken();
-        if(token == "function"){
-            functionHead();
-            subproced();
+
+///语法分析时的版本
+//    functionHead();
+//    subproced();
+//    while(token == ";"){
+//        getToken();
+//        if(token == "function"){
+//            functionHead();
+//            subproced();
+//        }
+//    }
+
+///登记符号表时新简化版本
+    do{
+        formerNode = curNode;                             ///formerNode指向当前节点
+        Node *childNode = functionHead();          ///当前节点指向新建的节点item，childNode指针指向item
+        string childName = childNode->getName();    ///获取子节点名字
+        formerNode->addChilds(childName, childNode);      ///将子节点加入当前节点的childs
+        curNode->setParent(formerNode);                   ///子节点的parent指向父节点
+
+        subproced();
+
+        curNode = curNode->getParent();             ///子程序结束，回到父节点，相当于弹栈
+
+        if(token == ";"){
+            getToken();
         }
-    }
+        else{
+            error(Semicolon);
+        }
+    }while(token == "function");
 
     printStatement("This is a functionDeclare statement!");
 }
 
-void functionHead()     //函数首部
+Node* functionHead()     //函数首部
 {
+    string itemName;            ///函数
+    string type = "FUNCTION";   ///name/type/isChar/curItems/childs/parent/ret
+
+    Node item;                  ///新建节点
+    curNode = &item;            ///当前指针指向新建立的节点
+    item.setType(type);         ///
+
     if(token == "function"){
         getToken();
-        identifier();
+        itemName = identifier();
+        item.setName(itemName); ///
         if(token == "("){
             parameterTable();
         }
         if(token != ":"){
             error(Colon); //error:函数首部缺少':'
         }
-        else{
+        else{               //不缺':'
             getToken();
             if(token != "integer" && token != "char"){
                 error(Not_basicType); //error:不是基本类型
             }
             else{
+                isChar = judgeIsChar(); ///
+                item.setIsChar(isChar); ///
                 getToken();
                 if(token != ";"){
                     error(Semicolon); //error:函数首部缺少分号
@@ -408,6 +557,8 @@ void functionHead()     //函数首部
     }
 
     printStatement("This is a functionHead statement!");
+
+    return curNode;
 }
 
 void multiStatement()   //复合语句

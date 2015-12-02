@@ -1,7 +1,6 @@
 # Liu Haibo's
 .gitignore
 obj
-src
 bin
 .directory
 *.cbp

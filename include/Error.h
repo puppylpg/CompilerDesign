@@ -29,7 +29,8 @@ enum Error{
     String,
     Not_string_expression,
     Downto_to,
-    Do
+    Do,
+    Redefine
 };
 
 extern void error(Error id);

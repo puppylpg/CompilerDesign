@@ -32,7 +32,8 @@ void error(Error id)
         "Illegal string",
         "Neither string nor expression in writeStatement",
         "Missing downto/to",
-        "Missing do"
+        "Missing do",
+        "Redefined name"
     };
 
     fprintf(stderr, "[ERROR] %d:%d -- %s\n",
