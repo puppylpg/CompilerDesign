@@ -9,7 +9,8 @@ Node* initSymTable()
 {
     Node *tmp = new Node();
     tmp->setParent(NULL);         //根节点的标志
-    return root;
+    tmp->setName("root");
+    return tmp;
 }
 
 void enterItem(string name, BaseItem *item)

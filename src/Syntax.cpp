@@ -301,12 +301,12 @@ void varDefine()        //变量说明（定义）
     vector<string>::iterator it;
     for(it = itemNames.begin(); it != itemNames.end(); it++){   ///遍历每一个名字
         if(length != 0){            ///是数组
-            ArrayItem item(*it, type, isChar, length);
-            enterItem(*it, &item);           ///将创建的表项加入curItems
+            ArrayItem *item = new ArrayItem(*it, type, isChar, length);
+            enterItem(*it, item);           ///将创建的表项加入curItems
         }
         else{                       ///不是数组，是变量
-            VarItem item(*it, type, isChar, passByAddr);
-            enterItem(*it, &item);           ///将创建的表项加入curItems
+            VarItem *item = new VarItem(*it, type, isChar, passByAddr);
+            enterItem(*it, item);           ///将创建的表项加入curItems
         }
     }
 }
@@ -398,14 +398,14 @@ Node* procedureHead()    //过程首部
     string itemName;            ///过程
     string type = "PROCEDURE";  ///name/type/curItems/childs/parent
 
-    Node item;                  ///新建节点
-    curNode = &item;            ///当前指针指向新建立的节点
-    item.setType(type);         ///
+    Node *item = new Node();                  ///新建节点
+    curNode = item;            ///当前指针指向新建立的节点
+    item->setType(type);         ///
 
     if(token == "procedure"){
         getToken();
         itemName = identifier();
-        item.setName(itemName); ///
+        item->setName(itemName); ///
         if(token == "("){
             parameterTable();
         }
@@ -476,8 +476,8 @@ void parameterSegment() //形式参数段
 
     vector<string>::iterator it;      ///登记形参到当前子程序的符号表
     for(it = itemNames.begin(); it != itemNames.end(); it++){
-        VarItem item(*it, type, isChar, passByAddr);
-        enterItem(*it, &item);
+        VarItem *item = new VarItem(*it, type, isChar, passByAddr);
+        enterItem(*it, item);
     }
 }
 
@@ -523,14 +523,14 @@ Node* functionHead()     //函数首部
     string itemName;            ///函数
     string type = "FUNCTION";   ///name/type/isChar/curItems/childs/parent/ret
 
-    Node item;                  ///新建节点
-    curNode = &item;            ///当前指针指向新建立的节点
-    item.setType(type);         ///
+    Node *item = new Node();                  ///新建节点
+    curNode = item;            ///当前指针指向新建立的节点
+    item->setType(type);         ///
 
     if(token == "function"){
         getToken();
         itemName = identifier();
-        item.setName(itemName); ///
+        item->setName(itemName); ///
         if(token == "("){
             parameterTable();
         }
@@ -544,7 +544,7 @@ Node* functionHead()     //函数首部
             }
             else{
                 isChar = judgeIsChar(); ///
-                item.setIsChar(isChar); ///
+                item->setIsChar(isChar); ///
                 getToken();
                 if(token != ";"){
                     error(Semicolon); //error:函数首部缺少分号
