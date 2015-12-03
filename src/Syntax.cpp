@@ -276,7 +276,7 @@ void varDeclare()           //变量说明部分
 void varDefine()        //变量说明（定义）
 {
     vector<string> itemNames;///变量[数组]对象的属性
-    string type = "VAR";
+    string type;
     bool passByAddr = false;
                             ///变量：name/type/isChar/passByAddr
                             ///数组：name/type/isChar/length
@@ -301,10 +301,12 @@ void varDefine()        //变量说明（定义）
     vector<string>::iterator it;
     for(it = itemNames.begin(); it != itemNames.end(); it++){   ///遍历每一个名字
         if(length != 0){            ///是数组
+            type = "ARRAY";
             ArrayItem *item = new ArrayItem(*it, type, isChar, length);
             enterItem(*it, item);           ///将创建的表项加入curItems
         }
         else{                       ///不是数组，是变量
+            type = "VAR";
             VarItem *item = new VarItem(*it, type, isChar, passByAddr);
             enterItem(*it, item);           ///将创建的表项加入curItems
         }
@@ -372,11 +374,13 @@ void procedureDeclare() //过程说明部分
 
 ///登记符号表时新简化版本
     do{
-        formerNode = curNode;                             ///formerNode指向当前节点
-        Node *childNode = procedureHead();          ///当前节点指向新建的节点item，childNode指针指向item
+        formerNode = curNode;                       ///formerNode指向当前节点
+        Node *childNode = procedureHead();          ///curNode和childNode指向新建的子节点item
+        curNode = formerNode;                       ///curNode又指向了父节点
         string childName = childNode->getName();    ///获取子节点名字
-        formerNode->addChilds(childName, childNode);      ///将子节点加入当前节点的childs
-        curNode->setParent(formerNode);                   ///子节点的parent指向父节点
+        enterChild(childName, childNode);           ///将子节点加入当前节点的childs
+        curNode = childName;                        ///curNode又指向了子节点
+        curNode->setParent(formerNode);             ///子节点的parent指向父节点
 
         subproced();
 
@@ -497,11 +501,13 @@ void functionDeclare()  //函数说明部分
 
 ///登记符号表时新简化版本
     do{
-        formerNode = curNode;                             ///formerNode指向当前节点
-        Node *childNode = functionHead();          ///当前节点指向新建的节点item，childNode指针指向item
+        formerNode = curNode;                       ///formerNode指向当前节点
+        Node *childNode = functionHead();           ///curNode和childNode指向新建的子节点item
+        curNode = formerNode;                       ///curNode又指向了父节点
         string childName = childNode->getName();    ///获取子节点名字
-        formerNode->addChilds(childName, childNode);      ///将子节点加入当前节点的childs
-        curNode->setParent(formerNode);                   ///子节点的parent指向父节点
+        enterChild(childName, childNode);           ///将子节点加入当前节点的childs
+        curNode = childName;                        ///curNode又指向了子节点
+        curNode->setParent(formerNode);             ///子节点的parent指向父节点
 
         subproced();
 

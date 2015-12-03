@@ -33,7 +33,8 @@ void error(Error id)
         "Neither string nor expression in writeStatement",
         "Missing downto/to",
         "Missing do",
-        "Redefined name"
+        "Redefined const/var name",
+        "Redefined procedure/function name"
     };
 
     fprintf(stderr, "[ERROR] %d:%d -- %s\n",

@@ -16,14 +16,29 @@ Node* initSymTable()
 void enterItem(string name, BaseItem *item)
 {
     bool found;
-    found = curNode->findItem(name);
+    ItemSeg::iterator it = curNode->findItem(name);
+    found = (it == curNode->getCurItems().end()) ? false : true;
     if(!found){
         curNode->addCurItems(name, item);
     }
     else{
-        error(Redefine);    //重定义
+        error(Redefine_item);    //重定义
     }
 }
+
+void enterChild(string name, BaseItem *item)
+{
+    bool found;
+    ChildSeg::iterator it = curNode->findChild(name);
+    found = (it == curNode->getChilds().end()) ? false : true;
+    if(!found){
+        curNode->addChilds(name, item);
+    }
+    else{
+        error(Redefine_child);
+    }
+}
+
 /*
  * BaseType
  */
@@ -161,9 +176,17 @@ void Node::setParent(Node *parent)
     this->parent = parent;
 }
 
-bool Node::findItem(string itemName)
+ItemSeg::iterator Node::findItem(string itemName)
 {
     map<string, BaseItem*>::iterator it;
     it = this->curItems.find(itemName);
-    return (it != this->curItems.end());
+    return it;
+}
+
+ChildSeg::iterator Node::findChild(string childName)
+{
+    map<string, Node*>::iterator it;
+    it = this->childs.find(childName);
+//    return (it != this->childs.end());
+    return it;
 }

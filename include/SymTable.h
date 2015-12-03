@@ -89,6 +89,7 @@ public:
     void setParent(Node *parent);
 
     bool findItem(string itemName);
+    bool findChild(string childName);
 };
 
 typedef map<string, BaseItem*> ItemSeg;       //当前符号表段
@@ -100,4 +101,5 @@ extern Node *root;
 
 extern Node* initSymTable();
 extern void enterItem(string name, BaseItem *item);
+extern void enterChild(string name, BaseItem *item);
 #endif // SYMTABLE_H_INCLUDED

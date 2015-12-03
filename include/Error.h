@@ -30,7 +30,8 @@ enum Error{
     Not_string_expression,
     Downto_to,
     Do,
-    Redefine
+    Redefine_item,
+    Redefine_child
 };
 
 extern void error(Error id);
