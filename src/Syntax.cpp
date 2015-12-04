@@ -2,8 +2,11 @@
 #include "Token.h"
 #include "Error.h"
 #include "SymTable.h"
+#include "Gimple.h"
 
-#include <cstdlib>          ///atoi
+#include <cstdlib>          ///atoi()
+#include <cstdio>           ///sprintf(): itoa() is not defined in ANSI-C
+                            ///and is not part of C++, but is supported by some compilers.
 #include <vector>
 
 bool isChar;              ///判断基本类型(const或者函数的返回值)是integer还是char
@@ -59,6 +62,14 @@ bool judgeIsChar()
     else{
         return false;
     }
+}
+
+string trueLabel, falseLabel, loopLabel;
+string getLabel(string s)                   //每次自动生成一个不同的label
+{
+    static i = 0;
+    string label = s + i++;
+    return label;
 }
 
 //是否需要调用getToken():
@@ -592,13 +603,50 @@ void multiStatement()   //复合语句
 
 void statement()    //语句
 {
+    string result;
+    MIDOp op;
+
     if(symbol == "IDENTIFIER"){ //赋值语句或者过程调用语句
-        identifier();
-        if(symbol == "ASSIGNSY" || token == "["){
-            assignStatementLeft();  //赋值语句的后半部分
+        result = identifier();                              ///
+        if(symbol == "ASSIGNSY" || token == "["){           ///是赋值语句
+//            assignStatementLeft();  //赋值语句的后半部分
+            if(symbol == "ASSIGNSY"){                       ///为标识符或函数赋值
+                op = MID_ASSIGN;
+                getToken();
+                string tmp = expression();
+                enterGimList(op, tmp, result);              ///a := b --> <:=, b, a>
+                                ///TODO:这里也可能是为函数赋值，所以判断类型是否匹配时还要分情况！！！
+
+            }
+            else if(token == "["){                          ///为数组的一项赋值
+                getToken();
+                string op2 = expression();                  ///op2:数组下标
+                if(token != "]"){
+                    error(Right_bracket); //error:缺少']'
+                }
+                else{   //不缺']'
+                    getToken();
+                    if(symbol != "ASSIGNSY"){
+                        error(Assign); //缺少:=
+                    }
+                    else{   //不缺:=
+                        op = MID_SW;
+                        getToken();
+                        string tmp = expression();          ///tmp为赋值的量
+                        enterGimList(MID_SW, result, op2, tmp); ///a[2] := b --> <SW, a, 2, b>,没有SW了
+                    }
+                }
+            }
         }
         else if(token == "("){       //过程调用语句的实在参数表
-            realParameterTable();       //写成形式参数表了。。。
+            op = MID_CALL;
+            vector<string> realList = realParameterTable();       //写成形式参数表了。。。
+            ///TODO:!!!!!!!!!!!!!!!!!111 调用过程的call语句，可能有实在参数表，也可能没有
+            enterGimList(MID_CALL, result, realList);       ///haha(a,b,c) --> <CALL, haha, <vector> >
+        }
+        else{                       ///既不是赋值语句，也不是带实参表的过程调用，则为不带实参表的过程调用
+            op = MID_CALL;
+            enterGimList(MID_CALL, result); ///haha --> <CALL, haha>
         }
     }
     else if(symbol == "IF"){
@@ -626,7 +674,8 @@ void statement()    //语句
     printStatement("This is a statement statement!");
 }
 
-void assignStatementLeft()  //复制调用语句后半部分
+/*
+void assignStatementLeft()  //赋值调用语句后半部分
 {
     if(symbol == "ASSIGNSY"){
         getToken();
@@ -652,37 +701,83 @@ void assignStatementLeft()  //复制调用语句后半部分
 
     printStatement("This is a assignStatement statement!");
 }
+*/
 
-void expression()   //表达式
+string expression()   //表达式
 {
+    string result;
+    string tmp;                                     ///临时变量的名字
+    int i = 0;                                      ///用于生成临时变量的名字
+    MIDOp op;
+    bool flag = false;
+
+
     if(token == "+" || token == "-"){
+        op = (token == "+") ? MID_ADD : MID_SUB;
+        flag = (op == MID_SUB);
         getToken();
     }
-    term();
+
+    result = term();
+    if(flag){                                       ///如果第一个是负数，生成neg指令
+        tmp = "t" + i++;                            ///tmp = t0
+        enterGimList(MID_NEG, result, tmp); ///<neg, a, t0>
+    }
+
     while(token == "+" || token == "-"){
+        op = (token == "+") ? MID_ADD : MID_SUB;
         getToken();
-        term();
+        if(!tmp.empty()){                           ///如果一开始生成了neg指令
+            enterGimList(op, tmp, term(), "t" + i); ///eg: b=term(), <+, t0, b, t1>
+            tmp = "t" + i++;                        ///tmp = t1
+        }
+        else{                                       ///如果一开始没生成neg指令
+            tmp = "t" + i++;
+            enterGimList(op, result, term(), tmp);  ///eg: <+, a, b, t0>
+        }
     }
 
     printStatement("This is a expression statement!");
+
+    result = (tmp.empty()) ? result : tmp;          ///IMPORTANT!!!
+    return result;
 }
 
-void term() //项
+string term() //项
 {
-    factor();
+    string result;
+    string tmp;
+    MIDOp op;
+    int i = 0;
+
+    result = factor();
+
     while(token == "*" || token == "/"){
+        op = (token == "*") ? MID_MULT : MID_DIV;
         getToken();
-        factor();
+        if(!tmp.empty()){
+            enterGimList(op, tmp, factor(), "t" + i);   ///<*, t0, c, t1>
+            tmp = "t" + i++;                            ///tmp = t1
+        }
+        else{
+            tmp = "t" + i++;                            ///tmp = t0
+            enterGimList(op, result, factor(), tmp);    ///<*, a, b, t0>
+        }
     }
 
     printStatement("This is a term statement!");
+
+    result = (tmp.empty()) ? result : tmp;
+    return result;
 }
 
-void factor()   //因子
+string factor()   //因子
 {
-    if(token == "("){
+    string result;
+
+    if(token == "("){                       //表达式
         getToken();
-        expression();
+        result = expression();              ///
         if(token != ")"){
             error(Right_parenthese); //缺少')'
         }
@@ -690,11 +785,14 @@ void factor()   //因子
             getToken();
         }
     }
-    else if(symbol == "IDENTIFIER"){
-        identifier();
-        if(token == "["){
+    else if(symbol == "IDENTIFIER"){        //标识符
+        result = identifier();              ///
+        if(token == "["){                       //“标识符[]”，即数组的某一项
             getToken();
-            expression();
+            string op2 = expression();      ///eg: x := a[2]--> <LW, a, 2, tmp>; <":=", tmp, ___, x>
+            string tmp = "t0";
+            enterGimList(MID_LW, result, op2, tmp); ///取数组的项到tmp
+            result = tmp;                           ///将tmp返回到上一级，进行赋值语句处理
             if(token != "]"){
                 error(Right_bracket); //error:缺少']'
             }
@@ -702,29 +800,46 @@ void factor()   //因子
                 getToken();
             }
         }
-        else if(token == "("){  //函数调用语句后半部分：实在参数表
-            realParameterTable();
+        else if(token == "("){              //函数调用语句后半部分：实在参数表
+            vector<string> op2 = realParameterTable();      ///类比数组CALL eg: x := haha(a)--> <CALL, haha, <vector>, tmp>
+            string tmp = "t0";
+            enterGimList(MID_CALL, result, op2, tmp);   ///取函数到tmp
+            result = tmp;                               ///将tmp返回到上一级，进行赋值语句处理
         }
         else{   //空语句
             ;
+            ///TODO:要判断result是无实参函数还是普通标识符，然后再决定用哪一个调用语句
+            ///是函数（无实参）的话还需要CALL，否则无需动作，将result return回去就好
+            ///TODO:
         }
     }
-    else{
-        unsignedInteger();
+    else{                                   //无符号整数
+        char str[10];
+        sprintf(str, "%d", unsignedInteger());
+                ///TODO:无符号整数int --> string，之后对于四元式都需要atoi(str.c_str())
+        result = string(str);
     }
 
     printStatement("This is a factor statement!");
+
+    return result;
 }
 
-void realParameterTable()   //实在参数表
+vector<string> realParameterTable()   //实在参数表
 {
+    vector<string> result;
+
     if(token == "("){
         getToken();
-        realParameter();
+        string tmp = realParameter();
+        result.push_back(tmp);
+
         while(token == ","){
             getToken();
-            realParameter();
+            string tmp = realParameter();
+            result.push_back(tmp);
         }
+
         if(token != ")"){
             error(Right_parenthese); //error:缺少')'
         }
@@ -734,31 +849,41 @@ void realParameterTable()   //实在参数表
     }
 
     printStatement("This is a realParameterTable statement!");
+
+    return result;
 }
 
-void realParameter()    //实在参数
+string realParameter()    //实在参数
 {
-    expression();
+    string result;
+
+    result = expression();
 
     printStatement("This is a realParameter statement!");
+
+    return result;
 }
 
 void conditionStatement()   //条件语句
 {
     if(symbol == "IF"){
         getToken();
-        condition();
+        condition();                            ///生成了falseLabel --> < >, p, q, falseLabel>
         if(symbol != "THEN"){
             error(Then); //error:if后面缺少then
         }
         else{
             getToken();
             statement();
+            trueLabel = getLabel("tLabel");
+            enterGimList(MID_JMP, trueLabel);   ///<JMP, trueLabel>
+            enterGimList(MID_LABEL, falseLabel);    ///<LABEL, falseLabel>
         }
         if(symbol == "ELSE"){
             getToken();
             statement();
         }
+        enterGimList(MID_LABEL, trueLabel);     ///<LABEL, trueLabel>
     }
 
     printStatement("This is a conditionStatement statement!");
@@ -766,15 +891,38 @@ void conditionStatement()   //条件语句
 
 void condition()    //条件
 {
-    expression();
+    string p, q;
+    MIDOp op;
+
+    p = expression();
     if(symbol != charSymb['<'] && symbol != "LEQ"
        && symbol != charSymb['>'] && symbol != "GEQ"
        && symbol != charSymb['='] && symbol != "NEQ"){
         error(Op); //error:关系运算符错误
     }
     else{
+        if(token == ">"){
+            op = MID_GT;
+        }
+        else if(token == ">="){
+            op = MID_GE;
+        }
+        else if(token == "<"){
+            op = MID_LT;
+        }
+        else if(token == "<="){
+            op = MID_LE;
+        }
+        else if(token == "="){
+            op = MID_EQ;
+        }
+        else{
+            op = MID_NE;
+        }
         getToken();
-        expression();
+        q = expression();
+        falseLabel = getLabel("fLabel");
+        enterGimList(op, p, q, falseLabel);         ///
     }
 
     printStatement("This is a condition statement!");
@@ -823,18 +971,25 @@ void conditionTableElement()    //情况表元素
 
 void readStatement()
 {
+    vector<string> stateList;
+    MIDOp op;
+
     if(symbol == "READ"){
+        op = MID_READ;
         getToken();
         if(token != "("){
             error(Left_parenthese); //write后面缺少'('
         }
         else{
             getToken();
-            identifier();
+            string tmp = identifier();
+            stateList.push_back(tmp);
             while(token == ","){
                 getToken();
-                identifier();
+                string tmp = identifier();
+                stateList.push_back(tmp);
             }
+            enterGimList(op, stateList);        ///<WRITE, a, b, c, ...>
             if(token != ")"){
                 error(Right_parenthese); //缺少')'
             }
@@ -849,28 +1004,35 @@ void readStatement()
 
 void writeStatement()
 {
+    string state;                                   ///"liuhaibo"
+    string express;                                 ///-a*b + b*c
+    MIDOp op;
+
     if(symbol == "WRITE"){
+        op = MID_WRITE;
         getToken();
         if(token != "("){
             error(Left_parenthese); //write后面缺少'('
         }
         else{
             getToken();
-            if(token == "\""){  //是字符串
-                isString();
+            if(token == "\""){  //是字符串(后面可能会跟着一个Only one表达式)
+                string state = isString();    ///"liuhaibo"
                 if(token == ","){
                     getToken();
-                    expression();
+                    express = expression();     ///-a*b + b*c
+                    enterGimList(op, state, express);   ///<WRITE, liuhaibo, -a*b>
                 }
                 else{   //空语句
-                    ;
+                    enterGimList(op, state);            ///<WRITE, liuhaibo>
                 }
             }
             else if(token == "+"
                     || token == "-"
                     || symbol == "IDENTIFIER"){ //是表达式
-                getToken();
-                expression();
+//                getToken();               这个错误语法分析时没有检查出来
+                express = expression();
+                enterGimList(op, express);              ///<WRITE, -a*b>
             }
             else{
                 error(Not_string_expression); //write括号里面既不是字符串，也不是表达式
@@ -887,10 +1049,12 @@ void writeStatement()
     printStatement("This is a writeStatement statement!");
 }
 
-void isString() //字符串
+string isString() //字符串
 {
+    string result;
+
     if(token == "\""){
-        getToken();
+        result = getToken();                ///
         string::iterator it;
         for(it = token.begin(); it != token.end(); ++it){
             if( !LEGAL(*it) ){
@@ -908,33 +1072,50 @@ void isString() //字符串
     }
 
     printStatement("This is a isString statement!");
+
+    return result;
 }
 
 void forStatement() //for循环语句
 {
+    string i, t1, t2;
+    MIDOp op, selfOp;                       ///selfOp:+/-，代表自增/自减
+
     if(symbol == "FOR"){
         getToken();
-        identifier();
+        i = identifier();
         if(symbol != "ASSIGNSY"){
             error(Assign); //error:for语句缺少:=
         }
         else{
+            op = MID_ASSIGN;
             getToken();
-            expression();
+            t1 = expression();
+            enterGimList(op, t1, i);            ///i := t1 --> <:=, t1, i>
         }
         if(symbol != "DOWNTO" && symbol != "TO"){
             error(Downto_to); //error:for语句缺少downto/to
         }
         else{
+            selfOp = (symbol == "DOWNTO") ? MID_SUB : MID_ADD;
             getToken();
-            expression();
+            t2 = expression();
         }
         if(symbol != "DO"){
             error(Do); //error:for语句缺少do
         }
         else{
+            loopLabel = getLabel("loop");
+            enterGimList(MID_LABEL, loopLabel); ///<label, loop>
             getToken();
             statement();
+            enterGimList(selfOp, i, "1", i);    ///i := i + 1 --> <+/-, i, "1", i>
+            if(selfOp == MID_ADD){
+                enterGimList(MID_GE, i, t2, loopLabel);     /// i>=t2不成立，则跳转到loop  < >=, i, t2, loop>
+            }
+            else{
+                enterGimList(MID_LE, i, t2, loopLabel);     /// i<=t2不成立，则跳转到loop  < <=, i, t2, loop>
+            }
         }
     }
 

@@ -88,8 +88,10 @@ public:
     void addChilds(string childName, Node* childNode);
     void setParent(Node *parent);
 
-    bool findItem(string itemName);
-    bool findChild(string childName);
+    ItemSeg::iterator findItem(string itemName);
+    ChildSeg::iterator findChild(string childName);
+    ///TODO: findItemGlobal/findChildGlobal
+//    ItemSeg::iterator
 };
 
 typedef map<string, BaseItem*> ItemSeg;       //当前符号表段
