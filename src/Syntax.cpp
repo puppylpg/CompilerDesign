@@ -32,19 +32,19 @@ void functionDeclare();  //函数说明部分
 Node* functionHead();     //函数首部
 void multiStatement();   //复合语句
 void statement();    //语句
-void assignStatementLeft();  //复制调用语句后半部分
-void expression();   //表达式
-void term(); //项
-void factor();   //因子
-void realParameterTable();   //实在参数表
-void realParameter();    //实在参数
+//void assignStatementLeft();  //赋值调用语句后半部分
+string expression();   //表达式
+string term(); //项
+string factor();   //因子
+vector<string> realParameterTable();   //实在参数表
+string realParameter();    //实在参数
 void conditionStatement();   //条件语句
 void condition();    //条件
 void statusStatement();  //情况语句
-void conditionTableElement();    //情况表元素
+void conditionTableElement(string expState);    //情况表元素
 void readStatement();
 void writeStatement();
-void isString(); //字符串
+string isString(); //字符串
 void forStatement(); //for循环语句
 
 
@@ -52,6 +52,8 @@ void forStatement(); //for循环语句
 void printStatement(string s)
 {
 //    cout << s << endl;
+
+//    cout << "[" << line  << "," << pos << "]" << endl;      //to debug 四元式
 }
 
 bool judgeIsChar()
@@ -64,12 +66,25 @@ bool judgeIsChar()
     }
 }
 
-string trueLabel, falseLabel, loopLabel;
+string trueLabel, falseLabel, loopLabel, endLabel;
 string getLabel(string s)                   //每次自动生成一个不同的label
 {
-    static i = 0;
-    string label = s + i++;
+    static int i = 0;
+    char name[20] = {0};
+    sprintf(name, "%d", i++);
+    string num(name);
+    string label = s + num;
     return label;
+}
+
+string getTmp()
+{
+    static int j = 0;
+    char name[20] = {0};
+    sprintf(name, "%d", j++);
+    string num(name);
+    string tmp = "t" + num;
+    return tmp;
 }
 
 //是否需要调用getToken():
@@ -81,6 +96,7 @@ void proced()               //程序
 {
     root = initSymTable();   ///
     curNode = root;
+    enterGimList(MID_JMP, "__MAIN__");
 
     subproced();            //分程序
     if(token != "."){
@@ -111,6 +127,11 @@ void subproced()            //分程序
             functionDeclare();  //函数说明部分
         }
     }
+
+    if(curNode->getParent() == NULL){
+        enterGimList(MID_LABEL, "__MAIN__");    ///程序正式开始的标志
+    }
+
     multiStatement();       //复合语句
 
     printStatement("This is a subproced statement!");
@@ -150,8 +171,8 @@ void constDefine()      //常量定义
         num = constant();     //常量
     }
 
-    ConstItem item(itemName, type, isChar, num);        ///创建一个常量对象
-    enterItem(itemName, &item);                          ///将对象加入curItems
+    ConstItem *item = new ConstItem(itemName, type, isChar, num);        ///创建一个常量对象
+    enterItem(itemName, item);                          ///将对象加入curItems
 
     printStatement("This is a constDefine statement!");
 }
@@ -183,7 +204,7 @@ string identifier()       //标识符定义
     return itemName;
 }
 
-int constant()         //常量定义  ?????我将符号和数字分开返回了
+int constant()         //常量定义
 {
     int num;
     int flag;
@@ -389,11 +410,12 @@ void procedureDeclare() //过程说明部分
         Node *childNode = procedureHead();          ///curNode和childNode指向新建的子节点item
         curNode = formerNode;                       ///curNode又指向了父节点
         string childName = childNode->getName();    ///获取子节点名字
-        enterChild(childName, childNode);           ///将子节点加入当前节点的childs
-        curNode = childName;                        ///curNode又指向了子节点
+        enterItem(childName, childNode);            ///将子节点加入当前节点的childs
+        curNode = childNode;                        ///curNode又指向了子节点
         curNode->setParent(formerNode);             ///子节点的parent指向父节点
 
         subproced();
+        enterGimList(MID_RETURN, "");   ///过程结束要return
 
         curNode = curNode->getParent();             ///子程序结束，回到父节点，相当于弹栈
 
@@ -411,7 +433,16 @@ void procedureDeclare() //过程说明部分
 Node* procedureHead()    //过程首部
 {
     string itemName;            ///过程
-    string type = "PROCEDURE";  ///name/type/curItems/childs/parent
+    string type = "PROCEDURE";  ///header/name/type/curItems/parent
+
+    string header = curNode->getName();
+    Node *tmpNode = curNode;
+
+    while(tmpNode->getParent() != NULL){
+        tmpNode = tmpNode->getParent();
+        header += tmpNode->getName();
+        header += "_";
+    }
 
     Node *item = new Node();                  ///新建节点
     curNode = item;            ///当前指针指向新建立的节点
@@ -420,7 +451,13 @@ Node* procedureHead()    //过程首部
     if(token == "procedure"){
         getToken();
         itemName = identifier();
+        item->setHeader(header);    ///
         item->setName(itemName); ///
+
+        ///生成过程的名称Label，代表过程的开始，
+        ///名称要能体现出层次，从而允许同名不同域的情况
+        enterGimList(MID_LABEL, header + itemName);
+
         if(token == "("){
             parameterTable();
         }
@@ -516,11 +553,13 @@ void functionDeclare()  //函数说明部分
         Node *childNode = functionHead();           ///curNode和childNode指向新建的子节点item
         curNode = formerNode;                       ///curNode又指向了父节点
         string childName = childNode->getName();    ///获取子节点名字
-        enterChild(childName, childNode);           ///将子节点加入当前节点的childs
-        curNode = childName;                        ///curNode又指向了子节点
+        enterItem(childName, childNode);            ///将子节点加入当前节点的childs
+        curNode = childNode;                        ///curNode又指向了子节点
         curNode->setParent(formerNode);             ///子节点的parent指向父节点
 
         subproced();
+
+        enterGimList(MID_RETURN, "");       ///函数结束要return
 
         curNode = curNode->getParent();             ///子程序结束，回到父节点，相当于弹栈
 
@@ -538,7 +577,16 @@ void functionDeclare()  //函数说明部分
 Node* functionHead()     //函数首部
 {
     string itemName;            ///函数
-    string type = "FUNCTION";   ///name/type/isChar/curItems/childs/parent/ret
+    string type = "FUNCTION";   ///header/name/type/isChar/curItems/parent/ret
+
+    string header = curNode->getName();
+    Node *tmpNode = curNode;
+
+    while(tmpNode->getParent() != NULL){
+        tmpNode = tmpNode->getParent();
+        header += tmpNode->getName();
+        header += "_";
+    }
 
     Node *item = new Node();                  ///新建节点
     curNode = item;            ///当前指针指向新建立的节点
@@ -547,7 +595,13 @@ Node* functionHead()     //函数首部
     if(token == "function"){
         getToken();
         itemName = identifier();
+        item->setHeader(header);    ///
         item->setName(itemName); ///
+
+        ///生成过程的名称Label，代表过程的开始，
+        ///名称要能体现出层次，从而允许同名不同域的情况
+        enterGimList(MID_LABEL, header + itemName);
+
         if(token == "("){
             parameterTable();
         }
@@ -607,18 +661,34 @@ void statement()    //语句
     MIDOp op;
 
     if(symbol == "IDENTIFIER"){ //赋值语句或者过程调用语句
-        result = identifier();                              ///
+        result = identifier();
+                                      ///
+        if(curNode->findItemGlobal(result) == NULL){   ///result未定义
+            error(Undeclared_item);
+        }
+
         if(symbol == "ASSIGNSY" || token == "["){           ///是赋值语句
 //            assignStatementLeft();  //赋值语句的后半部分
             if(symbol == "ASSIGNSY"){                       ///为标识符或函数赋值
+
+                if(curNode->findItemGlobal(result)->getType() == "CONST"){
+                    error(Const_not_assign); ///常量不能被赋值
+                }
+                else if(curNode->findItemGlobal(result)->getType() == "PROCEDURE"){
+                    error(Procedure_not_assign); ///过程不能被赋值
+                }
+
                 op = MID_ASSIGN;
                 getToken();
                 string tmp = expression();
                 enterGimList(op, tmp, result);              ///a := b --> <:=, b, a>
-                                ///TODO:这里也可能是为函数赋值，所以判断类型是否匹配时还要分情况！！！
-
             }
             else if(token == "["){                          ///为数组的一项赋值
+
+                if(curNode->findItemGlobal(result)->getType() != "ARRAY"){
+                    error(Not_array); ///非数组进行数组调用
+                }
+
                 getToken();
                 string op2 = expression();                  ///op2:数组下标
                 if(token != "]"){
@@ -633,20 +703,28 @@ void statement()    //语句
                         op = MID_SW;
                         getToken();
                         string tmp = expression();          ///tmp为赋值的量
-                        enterGimList(MID_SW, result, op2, tmp); ///a[2] := b --> <SW, a, 2, b>,没有SW了
+                        enterGimList(MID_SW, result, op2, tmp); ///a[2] := b --> <SW, a, 2, b>
                     }
                 }
             }
         }
-        else if(token == "("){       //过程调用语句的实在参数表
+        else if(token == "("){       ///过程调用语句 的后半部分，过程调用语句的实在参数表
+
+            Node *item = (Node *)curNode->findItemGlobal(result);
+            if(item->getType() != "PROCEDURE"){
+                error(Not_procedure); ///非过程调用语句却直接调用
+            }
+
             op = MID_CALL;
             vector<string> realList = realParameterTable();       //写成形式参数表了。。。
-            ///TODO:!!!!!!!!!!!!!!!!!111 调用过程的call语句，可能有实在参数表，也可能没有
-            enterGimList(MID_CALL, result, realList);       ///haha(a,b,c) --> <CALL, haha, <vector> >
+            ///调用过程的call语句。带实参
+            enterGimList(MID_CALL, item->getHeader() + result, realList);       ///haha(a,b,c) --> <CALL, haha, <vector> >
         }
         else{                       ///既不是赋值语句，也不是带实参表的过程调用，则为不带实参表的过程调用
+
+            Node *item = (Node *)curNode->findItemGlobal(result);
             op = MID_CALL;
-            enterGimList(MID_CALL, result); ///haha --> <CALL, haha>
+            enterGimList(MID_CALL, item->getHeader() + result); ///haha --> <CALL, haha>
         }
     }
     else if(symbol == "IF"){
@@ -707,7 +785,6 @@ string expression()   //表达式
 {
     string result;
     string tmp;                                     ///临时变量的名字
-    int i = 0;                                      ///用于生成临时变量的名字
     MIDOp op;
     bool flag = false;
 
@@ -720,7 +797,7 @@ string expression()   //表达式
 
     result = term();
     if(flag){                                       ///如果第一个是负数，生成neg指令
-        tmp = "t" + i++;                            ///tmp = t0
+        tmp = getTmp();                            ///tmp = t0
         enterGimList(MID_NEG, result, tmp); ///<neg, a, t0>
     }
 
@@ -728,11 +805,12 @@ string expression()   //表达式
         op = (token == "+") ? MID_ADD : MID_SUB;
         getToken();
         if(!tmp.empty()){                           ///如果一开始生成了neg指令
-            enterGimList(op, tmp, term(), "t" + i); ///eg: b=term(), <+, t0, b, t1>
-            tmp = "t" + i++;                        ///tmp = t1
+            string tmptmp = getTmp();
+            enterGimList(op, tmp, term(), tmptmp); ///eg: b=term(), <+, t0, b, t1>
+            tmp = tmptmp;                        ///tmp = t1
         }
         else{                                       ///如果一开始没生成neg指令
-            tmp = "t" + i++;
+            tmp = getTmp();
             enterGimList(op, result, term(), tmp);  ///eg: <+, a, b, t0>
         }
     }
@@ -748,7 +826,6 @@ string term() //项
     string result;
     string tmp;
     MIDOp op;
-    int i = 0;
 
     result = factor();
 
@@ -756,11 +833,12 @@ string term() //项
         op = (token == "*") ? MID_MULT : MID_DIV;
         getToken();
         if(!tmp.empty()){
-            enterGimList(op, tmp, factor(), "t" + i);   ///<*, t0, c, t1>
-            tmp = "t" + i++;                            ///tmp = t1
+            string tmp2 = getTmp();
+            enterGimList(op, tmp, factor(), tmp2);   ///<*, t0, c, t1>
+            tmp = tmp2;                            ///tmp = t1
         }
         else{
-            tmp = "t" + i++;                            ///tmp = t0
+            tmp = getTmp();                            ///tmp = t0
             enterGimList(op, result, factor(), tmp);    ///<*, a, b, t0>
         }
     }
@@ -787,10 +865,19 @@ string factor()   //因子
     }
     else if(symbol == "IDENTIFIER"){        //标识符
         result = identifier();              ///
+
+        if(curNode->findItemGlobal(result) == NULL){
+            error(Undeclared_item);         ///error:未定义
+        }
+
         if(token == "["){                       //“标识符[]”，即数组的某一项
+
+            if(curNode->findItemGlobal(result)->getType() != "ARRAY"){
+                error(Not_array); ///不是数组却使用数组调用
+            }
             getToken();
             string op2 = expression();      ///eg: x := a[2]--> <LW, a, 2, tmp>; <":=", tmp, ___, x>
-            string tmp = "t0";
+            string tmp = getTmp();
             enterGimList(MID_LW, result, op2, tmp); ///取数组的项到tmp
             result = tmp;                           ///将tmp返回到上一级，进行赋值语句处理
             if(token != "]"){
@@ -801,23 +888,45 @@ string factor()   //因子
             }
         }
         else if(token == "("){              //函数调用语句后半部分：实在参数表
-            vector<string> op2 = realParameterTable();      ///类比数组CALL eg: x := haha(a)--> <CALL, haha, <vector>, tmp>
-            string tmp = "t0";
-            enterGimList(MID_CALL, result, op2, tmp);   ///取函数到tmp
+
+            Node *item = (Node *)curNode->findItemGlobal(result);
+            if(item->getType() != "FUNCTION"){
+                error(Not_function);    ///不是函数却像函数一样调用
+            }
+            else{
+                if(item->getCurItems().empty()){
+                    error(Function_should_without_para); ///函数不带参数却使用了参数调用
+                }
+            }
+
+            vector<string> op2 = realParameterTable();      ///类比数组,CALL eg: x := haha(a)--> <CALL, haha, <vector>, tmp>
+            string tmp = getTmp();
+            enterGimList(MID_CALL, item->getHeader() + result, op2, tmp);   ///取函数到tmp
             result = tmp;                               ///将tmp返回到上一级，进行赋值语句处理
         }
         else{   //空语句
-            ;
-            ///TODO:要判断result是无实参函数还是普通标识符，然后再决定用哪一个调用语句
-            ///是函数（无实参）的话还需要CALL，否则无需动作，将result return回去就好
-            ///TODO:
+
+            ///如果result仅仅是普通变量，在最后直接return到上一层，如果是函数（无实参），需要先调用
+            BaseItem *item = curNode->findItemGlobal(result);
+            if(item->getType() == "FUNCTION"){
+                Node *node = (Node*)curNode->findItemGlobal(result);    ///强制转型为函数类型
+                if(node->getCurItems().empty() == false){   ///函数本应该带参数
+                    error(Function_should_with_para); ///函数带参数却使用了无参数调用
+                }
+                string tmp = getTmp();
+                enterGimList(MID_CALL, node->getHeader() + result, tmp);
+                result = tmp;                           ///返回tmp到上一层
+            }
         }
     }
     else{                                   //无符号整数
         char str[10];
         sprintf(str, "%d", unsignedInteger());
                 ///TODO:无符号整数int --> string，之后对于四元式都需要atoi(str.c_str())
-        result = string(str);
+        string s = string(str);
+        string tmp = getTmp();
+        enterGimList(MID_ASSIGN_I, s, tmp);     ///数字常量应该用ASSIGN_I
+        result = tmp;
     }
 
     printStatement("This is a factor statement!");
@@ -827,7 +936,7 @@ string factor()   //因子
 
 vector<string> realParameterTable()   //实在参数表
 {
-    vector<string> result;
+    vector<string> result;              ///
 
     if(token == "("){
         getToken();
@@ -855,7 +964,7 @@ vector<string> realParameterTable()   //实在参数表
 
 string realParameter()    //实在参数
 {
-    string result;
+    string result;           ///
 
     result = expression();
 
@@ -922,7 +1031,7 @@ void condition()    //条件
         getToken();
         q = expression();
         falseLabel = getLabel("fLabel");
-        enterGimList(op, p, q, falseLabel);         ///
+        enterGimList(op, p, q, falseLabel);         ///生成错误则跳转的标签eg: (>, op1, op2, falseLabel)
     }
 
     printStatement("This is a condition statement!");
@@ -930,23 +1039,29 @@ void condition()    //条件
 
 void statusStatement()  //情况语句
 {
+    string expState;                 ///case后的表达式
+    string constState;
+
     if(symbol == "CASE"){
         getToken();
-        expression();
+        expState = expression();
         if(symbol != "OF"){
             error(Of); //case语句缺少of
         }
         else{
             getToken();
-            conditionTableElement();
+            trueLabel = getLabel("tLabel");     ///case若正确，结束标签只需要是一个即可，所以提前申请这一个
+            conditionTableElement(expState);        ///开口，
             while(token == ";"){
                 getToken();
-                conditionTableElement();
+
+                conditionTableElement(expState);
             }
             if(symbol != "END"){
                 error(End); //case语句缺少end
             }
             else{
+                enterGimList(MID_LABEL, trueLabel);  ///这里是最终case结束的地方<label, trueLabel>
                 getToken();
             }
         }
@@ -955,15 +1070,43 @@ void statusStatement()  //情况语句
     printStatement("This is a statusStatement statement!");
 }
 
-void conditionTableElement()    //情况表元素
+void conditionTableElement(string expState)    //情况表元素
 {
-    constant();
+    int num;
+    char c;
+    char str[10];
+    string s;
+    string tmp;                 ///临时寄存器
+
+    num = constant();
+    if(isChar == true){             ///如果constant返回的是字符
+        c = (char)num;
+        s += c;
+        tmp = getTmp();
+        enterGimList(MID_ASSIGN_I, s, tmp);     ///常量移入寄存器<assign_i, s, tmp>
+                            ///用assign_i区分开常量和变量（比如都是a，究竟是var a,还是字符a
+                            ///否则由于四元式都是用string表示的，区分不开！！！）
+        falseLabel = getLabel("fLabel");
+        enterGimList(MID_EQ, tmp, expState, falseLabel);
+    }
+    else{                           ///返回的是数字
+        sprintf(str, "%d", num);
+        s = string(str);
+        tmp = getTmp();
+        enterGimList(MID_ASSIGN_I, s, tmp);
+        falseLabel = getLabel("fLabel");
+        enterGimList(MID_EQ, tmp, expState, falseLabel);
+    }
+
     if(token != ":"){
         error(Colon); //缺少":"
     }
     else{
         getToken();
         statement();
+///        endLabel = getLabel("endLabel"); //错误，每次出现case都会新得到一个endLabel，实际上一个就够了
+        enterGimList(MID_JMP, trueLabel);    ///运行完这一case，直接跳到最后<jmp, trueLabel>
+        enterGimList(MID_LABEL, falseLabel);    ///如果不满足case这里是下一个case入口<label, falseLabel>
     }
 
     printStatement("This is a conditionTableElement statement!");
@@ -1054,7 +1197,8 @@ string isString() //字符串
     string result;
 
     if(token == "\""){
-        result = getToken();                ///
+        getToken();
+        result = token;
         string::iterator it;
         for(it = token.begin(); it != token.end(); ++it){
             if( !LEGAL(*it) ){
@@ -1109,7 +1253,9 @@ void forStatement() //for循环语句
             enterGimList(MID_LABEL, loopLabel); ///<label, loop>
             getToken();
             statement();
-            enterGimList(selfOp, i, "1", i);    ///i := i + 1 --> <+/-, i, "1", i>
+            string tmp = getTmp();
+            enterGimList(MID_ASSIGN_I, "1", tmp);
+            enterGimList(selfOp, i, tmp, i);    ///i := i + 1 --> <+/-, i, "1", i>
             if(selfOp == MID_ADD){
                 enterGimList(MID_GE, i, t2, loopLabel);     /// i>=t2不成立，则跳转到loop  < >=, i, t2, loop>
             }

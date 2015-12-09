@@ -31,7 +31,14 @@ enum Error{
     Downto_to,
     Do,
     Redefine_item,
-    Redefine_child
+    Undeclared_item,
+    Const_not_assign,
+    Procedure_not_assign,
+    Not_array,
+    Not_procedure,
+    Not_function,
+    Function_should_without_para,
+    Function_should_with_para
 };
 
 extern void error(Error id);

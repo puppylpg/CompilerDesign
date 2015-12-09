@@ -1,4 +1,4 @@
-#include "Gimple4.h"
+#include "Gimple.h"
 #include <cstdio>
 #include <iostream>
 
@@ -7,7 +7,8 @@ const char *opMsg[] = {                 //op对应的“可视”形式
     "-",
     "*",
     "/",
-    ":=",
+    "ASSIGN",
+    "ASSIGN_I",
     "NEG",
     "LW",
     "SW",
@@ -21,8 +22,9 @@ const char *opMsg[] = {                 //op对应的“可视”形式
     "LABEL",
     "JMP",
     "WRITE",
-    "READ"
-}
+    "READ",
+    "RETURN"
+};
 
 vector<Gimple*> gimList;                //存放X元式的对象
 
@@ -46,7 +48,7 @@ void printGimple(Gimple2_list *gimple)
 void printGimple(Gimple3 *gimple)
 {
     cout << opMsg[gimple->getOp()] << ",\t" << gimple->getOp1() << ",\t"
-            gimple->getResult() << endl;
+            << gimple->getResult() << endl;
 }
 
 void printGimple(Gimple3_list *gimple)
@@ -63,7 +65,7 @@ void printGimple(Gimple3_list *gimple)
 void printGimple(Gimple4 *gimple)
 {
     cout << opMsg[gimple->getOp()] << ",\t" << gimple->getOp1() << ",\t"
-            gimple->getOp2() << ",\t" << gimple->getResult() << endl;
+            << gimple->getOp2() << ",\t" << gimple->getResult() << endl;
 }
 
 void printGimple(Gimple4_list *gimple)
@@ -71,7 +73,7 @@ void printGimple(Gimple4_list *gimple)
     cout << opMsg[gimple->getOp()] << ",\t" << gimple->getOp1() << ",\t";
     vector<string> op2 = gimple->getOp2();
     vector<string>::iterator it;
-    for(it = op2.begin() && it != op2.end(); it != op2.end(); it++){        //vector有可能为空（不带实参表）
+    for(it = op2.begin(); it != op2.end(); it++){
         cout << *it << ",\t";
     }
     cout << gimple->getResult() << endl;
@@ -124,7 +126,8 @@ void enterGimList(MIDOp op, string op1, vector<string> op2, string result)
 /*
  * Gimple
  */
-Gimple::Gimple(MIDOp op, GimpleType gimpleType = Gimple_for_base)
+//默认参数只可在函数声明中设定一次。只有在没有函数声明时，才可以在函数定义中设定。
+Gimple::Gimple(MIDOp op, GimpleType gimpleType /*= Gimple_for_base*/)
 {
     this->gimpleType = gimpleType;
     this->op = op;
@@ -148,7 +151,7 @@ Gimple2::Gimple2(MIDOp op, string result, GimpleType gimpleType) : Gimple(op, gi
     this->result = result;
 }
 
-string Gimple::getResult()
+string Gimple2::getResult()
 {
     return this->result;
 }
@@ -156,7 +159,7 @@ string Gimple::getResult()
 /*
  * Gimple2_list
  */
-Gimple2_list::Gimple2_list(MIDOp op, vector<string> stateList, GimpleType gimpleType) : Gimple(op, GimpleType)
+Gimple2_list::Gimple2_list(MIDOp op, vector<string> stateList, GimpleType gimpleType) : Gimple(op, gimpleType)
 {
     this->stateList = stateList;
 }

@@ -2,6 +2,8 @@
 #define GIMPLE_H_INCLUDED
 
 #include <vector>
+#include <string>
+using namespace std;
 
 enum MIDOp{                     //MIDOp是一种类型，代表X元式的操作指令
     MID_ADD,
@@ -9,6 +11,7 @@ enum MIDOp{                     //MIDOp是一种类型，代表X元式的操作�
     MID_MULT,
     MID_DIV,
     MID_ASSIGN,
+    MID_ASSIGN_I,
     MID_NEG,
     MID_LW,
     MID_SW,
@@ -22,7 +25,8 @@ enum MIDOp{                     //MIDOp是一种类型，代表X元式的操作�
     MID_LABEL,
     MID_JMP,
     MID_WRITE,
-    MID_READ
+    MID_READ,
+    MID_RETURN
 };
 
 enum GimpleType{                //X元式的类型
@@ -42,7 +46,7 @@ private:
     MIDOp op;
 
 public:
-    Gimple{}
+    Gimple(){}
     Gimple(MIDOp op, GimpleType gimpleType = Gimple_for_base);
 
     MIDOp getOp();
@@ -55,7 +59,7 @@ private:
     string result;
 
 public:
-    Gimple2{}
+    Gimple2(){}
     Gimple2(MIDOp op, string result, GimpleType gimpleType = Gimple_for_2);
 
     string getResult();
@@ -67,7 +71,7 @@ private:
     vector<string> stateList;
 
 public:
-    Gimple2_list{}
+    Gimple2_list(){}
     Gimple2_list(MIDOp op, vector<string> stateList, GimpleType gimpleType = Gimple_for_2list);
 
     vector<string> getStateList();
@@ -79,7 +83,7 @@ private:
     string op1;
 
 public:
-    Gimple3{}
+    Gimple3(){}
     Gimple3(MIDOp op, string op1, string result, GimpleType gimpleType = Gimple_for_3);
 
     string getOp1();
@@ -91,7 +95,7 @@ private:
     vector<string> realList;
 
 public:
-    Gimple3_list{}
+    Gimple3_list(){}
     Gimple3_list(MIDOp op, string result, vector<string> realList, GimpleType gimpleType = Gimple_for_3list);
 
     vector<string> getRealList();
@@ -103,7 +107,7 @@ private:
     string op2;
 
 public:
-    Gimple4{}
+    Gimple4(){}
     Gimple4(MIDOp op, string op1, string op2, string result, GimpleType gimpleType = Gimple_for_4);
 
     string getOp2();
@@ -115,7 +119,7 @@ private:
     vector<string> op2;
 
 public:
-    Gimple4_list{}
+    Gimple4_list(){}
     Gimple4_list(MIDOp op, string op1, vector<string> op2, string result, GimpleType gimpleType = Gimple_for_4list);
 
     vector<string> getOp2();

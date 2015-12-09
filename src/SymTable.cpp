@@ -9,33 +9,18 @@ Node* initSymTable()
 {
     Node *tmp = new Node();
     tmp->setParent(NULL);         //根节点的标志
-    tmp->setName("root");
+    tmp->setName("__ROOT__");       ///相对于正常的函数名来说要不合法
     return tmp;
 }
 
 void enterItem(string name, BaseItem *item)
 {
-    bool found;
-    ItemSeg::iterator it = curNode->findItem(name);
-    found = (it == curNode->getCurItems().end()) ? false : true;
-    if(!found){
+    BaseItem* it =  curNode->findItem(name);
+    if(it == NULL){             //如果没找到，则加入新定义
         curNode->addCurItems(name, item);
     }
     else{
-        error(Redefine_item);    //重定义
-    }
-}
-
-void enterChild(string name, BaseItem *item)
-{
-    bool found;
-    ChildSeg::iterator it = curNode->findChild(name);
-    found = (it == curNode->getChilds().end()) ? false : true;
-    if(!found){
-        curNode->addChilds(name, item);
-    }
-    else{
-        error(Redefine_child);
+        error(Redefine_item);    //如果已存在，证明重定义
     }
 }
 
@@ -141,14 +126,14 @@ int Node::getRet()
     return this->ret;
 }
 
-ItemSeg Node::getCurItems()
+string Node::getHeader()
 {
-    return this->curItems;
+    return this->header;
 }
 
-ChildSeg Node::getChilds()
+map<string, BaseItem*> Node::getCurItems()
 {
-    return this->childs;
+    return this->curItems;
 }
 
 Node* Node::getParent()
@@ -161,14 +146,14 @@ void Node::setRet(int ret)
     this->ret = ret;
 }
 
+void Node::setHeader(string header)
+{
+    this->header = header;
+}
+
 void Node::addCurItems(string itemName, BaseItem* item)
 {
     this->curItems[itemName] = item;
-}
-
-void Node::addChilds(string childName, Node *childNode)
-{
-    this->childs[childName] = childNode;
 }
 
 void Node::setParent(Node *parent)
@@ -176,17 +161,38 @@ void Node::setParent(Node *parent)
     this->parent = parent;
 }
 
-ItemSeg::iterator Node::findItem(string itemName)
+//返回指针更合理，也方便修改
+BaseItem* Node::findItem(string itemName)
 {
     map<string, BaseItem*>::iterator it;
     it = this->curItems.find(itemName);
-    return it;
+    if(it == curItems.end()){
+        return NULL;
+    }
+    else{
+        return it->second;
+    }
 }
 
-ChildSeg::iterator Node::findChild(string childName)
+BaseItem* Node::findItemGlobal(string itemName)
 {
-    map<string, Node*>::iterator it;
-    it = this->childs.find(childName);
-//    return (it != this->childs.end());
-    return it;
+    map<string, BaseItem*>::iterator it;
+    BaseItem *target = findItem(itemName);
+    if(target != NULL){                 //当前层找到了
+        return target;
+    }
+    else if(this->parent != NULL){      //如果当前层没找到，且还有上层
+        Node *node = this;
+        while(node->parent != NULL){
+            node = node->parent;
+            target = node->findItem(itemName);
+            if(target != NULL){
+                return target;
+            }
+        }
+        return NULL;
+    }
+    else{                               //如果当前层没找到，且不存在上层
+        return NULL;
+    }
 }

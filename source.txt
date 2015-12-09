@@ -1,4 +1,4 @@
-const init = -1;
+const init = -1, char0 = '0';
 var ch : char; top, length, i : integer; s : array [20] of char; stack : array [10] of integer;
 
 procedure getchar;
@@ -68,7 +68,7 @@ begin
 		if isOp(s[i]) <> 1 then
 		begin
 			top := top + 1;
-			stack[top] := s[i] - 0		
+			stack[top] := s[i] - char0		
 		end
 		else
 		begin

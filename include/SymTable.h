@@ -7,6 +7,19 @@
 
 using namespace std;
 
+/*
+//用枚举去定义BaseItem的type貌似确实比用string更好一些，
+(对于这种数量确定的，用枚举，类似变量名那种无边无际的，用string更好)
+但是这次就不改了吧
+enum ItemType{
+    ItemType_CONST,
+    ItemType_VAR,
+    ItemType_ARRAY,
+    ItemType_PROCEDURE,
+    ItemType_FUNCTION
+};
+*/
+
 class BaseItem{                     //基类
 private:
     string name;
@@ -72,30 +85,25 @@ class Node : public BaseItem        //函数或过程，作为节点
 {
 private:
     int ret;
+    string header;                      ///name的头前缀，合成新的name，从而允许同名不同域的情况
     map<string, BaseItem*> curItems;  //存储当前程序段的属性变量
-    map<string, Node*> childs;       //存储当前程序段的子程序段（子函数或子过程）
     Node *parent;
 
 public:
 
     int getRet();
+    string getHeader();
     map<string, BaseItem*> getCurItems();    //ItemSeg
-    map<string, Node*> getChilds();          //ChildSeg
     Node* getParent();
 
     void setRet(int ret);
+    void setHeader(string header);
     void addCurItems(string itemName, BaseItem* item);
-    void addChilds(string childName, Node* childNode);
     void setParent(Node *parent);
 
-    ItemSeg::iterator findItem(string itemName);
-    ChildSeg::iterator findChild(string childName);
-    ///TODO: findItemGlobal/findChildGlobal
-//    ItemSeg::iterator
+    BaseItem* findItem(string itemName);
+    BaseItem* findItemGlobal(string itemName);
 };
-
-typedef map<string, BaseItem*> ItemSeg;       //当前符号表段
-typedef map<string, Node*> ChildSeg;         //子函数或子过程段
 
 extern Node *curNode;                      //当前所在节点（程序或函数）
 extern Node *formerNode;                         //前一个节点
@@ -103,5 +111,4 @@ extern Node *root;
 
 extern Node* initSymTable();
 extern void enterItem(string name, BaseItem *item);
-extern void enterChild(string name, BaseItem *item);
 #endif // SYMTABLE_H_INCLUDED

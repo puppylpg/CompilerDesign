@@ -33,8 +33,15 @@ void error(Error id)
         "Neither string nor expression in writeStatement",
         "Missing downto/to",
         "Missing do",
-        "Redefined const/var name",
-        "Redefined procedure/function name"
+        "Redefined identifier",
+        "Undeclared identifier",
+        "Constant can't be assigned",
+        "Procedure can't be assigned",
+        "Isn't an array, illegal \"[]\" using",
+        "Isn't a procedure but is called like a procedure",
+        "Isn't a function but is called like a function",
+        "Function shouldn't has parameter(s)",
+        "Function should has parameter(s)"
     };
 
     fprintf(stderr, "[ERROR] %d:%d -- %s\n",
