@@ -25,6 +25,8 @@ private:
     string name;
     string type;
     bool isChar;
+    int level;                      ///节点所在的层级
+    int baseOffset;                 ///当前已经偏移的大小，用于方便的填写各变量的offset
 
 public:
     BaseItem(){}
@@ -33,10 +35,14 @@ public:
     string getName();
     string getType();
     bool getIsChar();
+    int getLevel();
+    int getBaseOffset();
 
     void setName(string name);
     void setType(string type);
     void setIsChar(bool isChar);
+    void setLevel(int level);
+    void setBaseOffset(int baseOffset);
 };
 
 class ConstItem : public BaseItem    //常量
@@ -57,28 +63,34 @@ class VarItem : public BaseItem    //变量
 {
 private:
     bool passByAddr;
+    int offset;                     ///变量相对于本层基地址的偏移.不该把VarItem和ArrayItem分成两个类的
 
 public:
     VarItem(){}
     VarItem(string name, string type, bool isChar, bool passByAddr);
 
     bool getPassByAddr();
+    int getOffset();
 
     void setPassByAddr(bool passByAddr);
+    void setOffset(int offset);
 };
 
 class ArrayItem : public BaseItem       //数组：array[...] of (integer | char)
 {
 private:
     int length;
+    int offset;                     ///变量相对于本层基地址的偏移
 
 public:
     ArrayItem(){}
     ArrayItem(string name, string type, bool isChar, int length);    //type为integer | char,决定数组类型
 
     int getLength();
+    int getOffset();
 
     void setLength(int length);
+    void setOffset(int offset);
 };
 
 class Node : public BaseItem        //函数或过程，作为节点

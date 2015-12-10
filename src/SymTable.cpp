@@ -10,6 +10,8 @@ Node* initSymTable()
     Node *tmp = new Node();
     tmp->setParent(NULL);         //根节点的标志
     tmp->setName("__ROOT__");       ///相对于正常的函数名来说要不合法
+    tmp->setBaseOffset(0);          ///为了变量（属于下一层）的偏移
+    tmp->setLevel(0);               ///第零层
     return tmp;
 }
 
@@ -49,6 +51,16 @@ bool BaseItem::getIsChar()
     return this->isChar;
 }
 
+int BaseItem::getLevel()
+{
+    return this->level;
+}
+
+int BaseItem::getBaseOffset()
+{
+    return this->baseOffset;
+}
+
 void BaseItem::setName(string name)
 {
     this->name = name;
@@ -62,6 +74,16 @@ void BaseItem::setType(string type)
 void BaseItem::setIsChar(bool isChar)
 {
     this->isChar = isChar;
+}
+
+void BaseItem::setLevel(int level)
+{
+    this->level = level;
+}
+
+void BaseItem::setBaseOffset(int baseOffset)
+{
+    this->baseOffset = baseOffset;
 }
 
 /*
@@ -95,9 +117,19 @@ bool VarItem::getPassByAddr()
     return this->passByAddr;
 }
 
+int VarItem::getOffset()
+{
+    return this->offset;
+}
+
 void VarItem::setPassByAddr(bool passByAddr)
 {
     this->passByAddr = passByAddr;
+}
+
+void VarItem::setOffset(int offset)
+{
+    this->offset = offset;
 }
 
 /*
@@ -113,9 +145,19 @@ int ArrayItem::getLength()
     return this->length;
 }
 
+int ArrayItem::getOffset()
+{
+    return this->offset;
+}
+
 void ArrayItem::setLength(int length)
 {
     this->length = length;
+}
+
+void ArrayItem::setOffset(int offset)
+{
+    this->offset = offset;
 }
 
 /*

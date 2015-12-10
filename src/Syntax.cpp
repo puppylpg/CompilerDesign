@@ -8,6 +8,10 @@
 #include <cstdio>           ///sprintf(): itoa() is not defined in ANSI-C
                             ///and is not part of C++, but is supported by some compilers.
 #include <vector>
+#include <cctype>
+#include <algorithm>        ///transform:使用STL将string转换大小写
+
+#define SIZE 4
 
 bool isChar;              ///判断基本类型(const或者函数的返回值)是integer还是char
 int length;               ///判断var是不是数组
@@ -201,6 +205,9 @@ string identifier()       //标识符定义
     getToken();
 
     printStatement("This is a identifier statement!");
+
+    ///全部转化为小写，因为要求忽略标识符大小写。。。
+    transform(itemName.begin(), itemName.end(), itemName.begin(), ::tolower);
     return itemName;
 }
 
@@ -310,8 +317,8 @@ void varDefine()        //变量说明（定义）
     vector<string> itemNames;///变量[数组]对象的属性
     string type;
     bool passByAddr = false;
-                            ///变量：name/type/isChar/passByAddr
-                            ///数组：name/type/isChar/length
+                            ///变量：name/type/isChar/passByAddr/level/offset/BaseItem
+                            ///数组：name/type/isChar/length/level/offset/BaseItem
 
     itemNames.push_back(identifier());
     while(token == ","){
@@ -330,16 +337,24 @@ void varDefine()        //变量说明（定义）
     printStatement("This is a varDefine statement!");
 
     ///为变量[数组]创建符号表项到curItems
+    int offset;
     vector<string>::iterator it;
     for(it = itemNames.begin(); it != itemNames.end(); it++){   ///遍历每一个名字
+        offset = curNode->getBaseOffset();
         if(length != 0){            ///是数组
             type = "ARRAY";
             ArrayItem *item = new ArrayItem(*it, type, isChar, length);
+            item->setOffset(offset);
+            curNode->setBaseOffset(offset + SIZE * length);     ///修改基础偏移量
+            item->setLevel(curNode->getLevel() + 1);           ///修改变量层数
             enterItem(*it, item);           ///将创建的表项加入curItems
         }
         else{                       ///不是数组，是变量
             type = "VAR";
             VarItem *item = new VarItem(*it, type, isChar, passByAddr);
+            item->setOffset(offset);
+            curNode->setBaseOffset(offset + SIZE);              ///修改基础偏移量
+            item->setLevel(curNode->getLevel() + 1);           ///修改变量层数
             enterItem(*it, item);           ///将创建的表项加入curItems
         }
     }
@@ -447,12 +462,14 @@ Node* procedureHead()    //过程首部
     Node *item = new Node();                  ///新建节点
     curNode = item;            ///当前指针指向新建立的节点
     item->setType(type);         ///
+    item->setBaseOffset(0);         ///设置变量基础偏移量
+    item->setLevel(formerNode->getLevel() + 1); ///设置当前节点
 
     if(token == "procedure"){
         getToken();
         itemName = identifier();
         item->setHeader(header);    ///
-        item->setName(itemName); ///
+        item->setName(itemName);    ///
 
         ///生成过程的名称Label，代表过程的开始，
         ///名称要能体现出层次，从而允许同名不同域的情况
@@ -528,7 +545,11 @@ void parameterSegment() //形式参数段
 
     vector<string>::iterator it;      ///登记形参到当前子程序的符号表
     for(it = itemNames.begin(); it != itemNames.end(); it++){
+        int offset = curNode->getBaseOffset();                      ///为每一个变量添加offset
         VarItem *item = new VarItem(*it, type, isChar, passByAddr);
+        item->setOffset(offset);
+        curNode->setBaseOffset(offset + SIZE);                      ///修改基础偏移
+        item->setLevel(curNode->getLevel() + 1);                    ///设置当前层数
         enterItem(*it, item);
     }
 }
@@ -591,6 +612,8 @@ Node* functionHead()     //函数首部
     Node *item = new Node();                  ///新建节点
     curNode = item;            ///当前指针指向新建立的节点
     item->setType(type);         ///
+    item->setBaseOffset(0);         ///设置变量基础偏移量
+    item->setLevel(formerNode->getLevel() + 1); ///设置当前节点
 
     if(token == "function"){
         getToken();
