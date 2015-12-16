@@ -1,0 +1,11 @@
+1.将临时变量的名字从t改为了_t，防止和变量重名；
+2.将临时变量加入符号表，类型全为VarItem，都设置为integer，从而能够很方便的将临时变量插入到内存中；
+3.ASSIGN之前进行了判断，如果标识符是const常量，就变成ASSIGN_I;
+4.READ每次只能读取一个值，而不再是之前的读一串，等于说把原来的一个四元式根据读入数据的个数拆成了一堆READ四元式。则READ函数调用scanf只有两种，%c和%d；
+5.LABEL改成两种，一种是普通标签的，一种是函数名标签的，用以区分函数名和普通标签名；
+6.WRITE拆分，规则同READ，则WRITE调用printf只有三种，%s, %d, %c；
+7.READ/WRITE变成五种：READINT/READCHAR/WRITEINT/WRITECHAR/WRITESTR,否则生成目标代码的时候还要判断一下WRITE的类型，比较麻烦；
+8.函数/过程的header有误，_3_2_1_nowName，实际上应该是_1_2_3nowName；
+
+ebp和display区
+C的运行栈的ebp跟Pascal的不一样。C只能使用局部变量和全局变量（全局变量的地址在编译时就确定了？应该是的），而不能使用caller的变量，所以ebp只需要指向caller的ebp，能在函数调用结束之后回到caller原来的状态就好。但是Pascal需要做到能够访问上一层的变量，这也意味着需要display区，才能达到“访问到对当前模块来说是全局变量的每个变量”的目的。因此，书上介绍时说活动记录包括“局部数据区”、“参数区”、“display区”，其中指向caller的ebp东西取名为prev abp（其实就是当前模块的ebp），它属于参数区，和display区是并列的关系，而不是同一个东西。

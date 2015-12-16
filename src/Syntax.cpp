@@ -87,8 +87,19 @@ string getTmp()
     char name[20] = {0};
     sprintf(name, "%d", j++);
     string num(name);
-    string tmp = "t" + num;
+    string tmp = "_t" + num;
     return tmp;
+}
+
+VarItem* enterTmp(string tmp)   ///将临时变量加入符号表
+{
+        type = "VAR";
+        VarItem *item = new VarItem(tmp, type, false, false);   ///isChar = false，所有的tmp都是integer
+        int offset = curNode->getBaseOffset();
+        curNode->setBaseOffset(offset + SIZE);
+        item->setOffset(offset);
+        item->setLevel(curNode->getLevel() + 1);
+        enterItem(tmp, item);
 }
 
 //是否需要调用getToken():
@@ -133,7 +144,7 @@ void subproced()            //分程序
     }
 
     if(curNode->getParent() == NULL){
-        enterGimList(MID_LABEL, "__MAIN__");    ///程序正式开始的标志
+        enterGimList(MID_FLABEL, "__MAIN__");    ///程序正式开始的标志
     }
 
     multiStatement();       //复合语句
@@ -344,16 +355,16 @@ void varDefine()        //变量说明（定义）
         if(length != 0){            ///是数组
             type = "ARRAY";
             ArrayItem *item = new ArrayItem(*it, type, isChar, length);
-            item->setOffset(offset);
             curNode->setBaseOffset(offset + SIZE * length);     ///修改基础偏移量
+            item->setOffset(offset);
             item->setLevel(curNode->getLevel() + 1);           ///修改变量层数
             enterItem(*it, item);           ///将创建的表项加入curItems
         }
         else{                       ///不是数组，是变量
             type = "VAR";
             VarItem *item = new VarItem(*it, type, isChar, passByAddr);
-            item->setOffset(offset);
             curNode->setBaseOffset(offset + SIZE);              ///修改基础偏移量
+            item->setOffset(offset);
             item->setLevel(curNode->getLevel() + 1);           ///修改变量层数
             enterItem(*it, item);           ///将创建的表项加入curItems
         }
@@ -450,13 +461,12 @@ Node* procedureHead()    //过程首部
     string itemName;            ///过程
     string type = "PROCEDURE";  ///header/name/type/curItems/parent
 
-    string header = curNode->getName();
+    string header = curNode->getName() + "_";
     Node *tmpNode = curNode;
 
     while(tmpNode->getParent() != NULL){
         tmpNode = tmpNode->getParent();
-        header += tmpNode->getName();
-        header += "_";
+        header = tmpNode->getName() + "_" + header;
     }
 
     Node *item = new Node();                  ///新建节点
@@ -473,7 +483,7 @@ Node* procedureHead()    //过程首部
 
         ///生成过程的名称Label，代表过程的开始，
         ///名称要能体现出层次，从而允许同名不同域的情况
-        enterGimList(MID_LABEL, header + itemName);
+        enterGimList(MID_FLABEL, header + itemName);
 
         if(token == "("){
             parameterTable();
@@ -547,8 +557,8 @@ void parameterSegment() //形式参数段
     for(it = itemNames.begin(); it != itemNames.end(); it++){
         int offset = curNode->getBaseOffset();                      ///为每一个变量添加offset
         VarItem *item = new VarItem(*it, type, isChar, passByAddr);
-        item->setOffset(offset);
         curNode->setBaseOffset(offset + SIZE);                      ///修改基础偏移
+        item->setOffset(offset);
         item->setLevel(curNode->getLevel() + 1);                    ///设置当前层数
         enterItem(*it, item);
     }
@@ -600,13 +610,12 @@ Node* functionHead()     //函数首部
     string itemName;            ///函数
     string type = "FUNCTION";   ///header/name/type/isChar/curItems/parent/ret
 
-    string header = curNode->getName();
+    string header = curNode->getName() + "_";
     Node *tmpNode = curNode;
 
     while(tmpNode->getParent() != NULL){
         tmpNode = tmpNode->getParent();
-        header += tmpNode->getName();
-        header += "_";
+        header = tmpNode->getName() + "_" + header;
     }
 
     Node *item = new Node();                  ///新建节点
@@ -623,7 +632,7 @@ Node* functionHead()     //函数首部
 
         ///生成过程的名称Label，代表过程的开始，
         ///名称要能体现出层次，从而允许同名不同域的情况
-        enterGimList(MID_LABEL, header + itemName);
+        enterGimList(MID_FLABEL, header + itemName);
 
         if(token == "("){
             parameterTable();
@@ -704,6 +713,10 @@ void statement()    //语句
                 op = MID_ASSIGN;
                 getToken();
                 string tmp = expression();
+                BaseItem *bi = curNode->findItemGlobal(tmp);
+                if(bi != NULL && bi->getType() == "CONST"){    ///如果是const就使用assign_i
+                    op = MID_ASSIGN_I;
+                }
                 enterGimList(op, tmp, result);              ///a := b --> <:=, b, a>
             }
             else if(token == "["){                          ///为数组的一项赋值
@@ -821,6 +834,7 @@ string expression()   //表达式
     result = term();
     if(flag){                                       ///如果第一个是负数，生成neg指令
         tmp = getTmp();                            ///tmp = t0
+        enterTmp(tmp);
         enterGimList(MID_NEG, result, tmp); ///<neg, a, t0>
     }
 
@@ -829,11 +843,13 @@ string expression()   //表达式
         getToken();
         if(!tmp.empty()){                           ///如果一开始生成了neg指令
             string tmptmp = getTmp();
+            enterTmp(tmptmp);
             enterGimList(op, tmp, term(), tmptmp); ///eg: b=term(), <+, t0, b, t1>
             tmp = tmptmp;                        ///tmp = t1
         }
         else{                                       ///如果一开始没生成neg指令
             tmp = getTmp();
+            enterTmp(tmp);
             enterGimList(op, result, term(), tmp);  ///eg: <+, a, b, t0>
         }
     }
@@ -857,11 +873,13 @@ string term() //项
         getToken();
         if(!tmp.empty()){
             string tmp2 = getTmp();
+            enterTmp(tmp2);
             enterGimList(op, tmp, factor(), tmp2);   ///<*, t0, c, t1>
             tmp = tmp2;                            ///tmp = t1
         }
         else{
             tmp = getTmp();                            ///tmp = t0
+            enterTmp(tmp);
             enterGimList(op, result, factor(), tmp);    ///<*, a, b, t0>
         }
     }
@@ -901,6 +919,7 @@ string factor()   //因子
             getToken();
             string op2 = expression();      ///eg: x := a[2]--> <LW, a, 2, tmp>; <":=", tmp, ___, x>
             string tmp = getTmp();
+            enterTmp(tmp);
             enterGimList(MID_LW, result, op2, tmp); ///取数组的项到tmp
             result = tmp;                           ///将tmp返回到上一级，进行赋值语句处理
             if(token != "]"){
@@ -924,6 +943,7 @@ string factor()   //因子
 
             vector<string> op2 = realParameterTable();      ///类比数组,CALL eg: x := haha(a)--> <CALL, haha, <vector>, tmp>
             string tmp = getTmp();
+            enterTmp(tmp);
             enterGimList(MID_CALL, item->getHeader() + result, op2, tmp);   ///取函数到tmp
             result = tmp;                               ///将tmp返回到上一级，进行赋值语句处理
         }
@@ -937,6 +957,7 @@ string factor()   //因子
                     error(Function_should_with_para); ///函数带参数却使用了无参数调用
                 }
                 string tmp = getTmp();
+                enterTmp(tmp);
                 enterGimList(MID_CALL, node->getHeader() + result, tmp);
                 result = tmp;                           ///返回tmp到上一层
             }
@@ -948,6 +969,7 @@ string factor()   //因子
                 ///TODO:无符号整数int --> string，之后对于四元式都需要atoi(str.c_str())
         string s = string(str);
         string tmp = getTmp();
+        enterTmp(tmp);
         enterGimList(MID_ASSIGN_I, s, tmp);     ///数字常量应该用ASSIGN_I
         result = tmp;
     }
@@ -1106,6 +1128,7 @@ void conditionTableElement(string expState)    //情况表元素
         c = (char)num;
         s += c;
         tmp = getTmp();
+        enterTmp(tmp);
         enterGimList(MID_ASSIGN_I, s, tmp);     ///常量移入寄存器<assign_i, s, tmp>
                             ///用assign_i区分开常量和变量（比如都是a，究竟是var a,还是字符a
                             ///否则由于四元式都是用string表示的，区分不开！！！）
@@ -1116,6 +1139,7 @@ void conditionTableElement(string expState)    //情况表元素
         sprintf(str, "%d", num);
         s = string(str);
         tmp = getTmp();
+        enterTmp(tmp);
         enterGimList(MID_ASSIGN_I, s, tmp);
         falseLabel = getLabel("fLabel");
         enterGimList(MID_EQ, tmp, expState, falseLabel);
@@ -1137,25 +1161,54 @@ void conditionTableElement(string expState)    //情况表元素
 
 void readStatement()
 {
-    vector<string> stateList;
+    string name;
     MIDOp op;
 
     if(symbol == "READ"){
-        op = MID_READ;
         getToken();
         if(token != "("){
-            error(Left_parenthese); //write后面缺少'('
+            error(Left_parenthese); //read后面缺少'('
         }
         else{
             getToken();
-            string tmp = identifier();
-            stateList.push_back(tmp);
+            name = identifier();
+            BaseItem *bi = curNode->findItemGlobal(name);   ///判断是不是往Var变量读入
+            if(bi->getType() == "VAR"){
+                VarItem *tmp = (VarItem*)bi;
+                if(bi->getIsChar() == true){
+                    op = MID_READCHAR;
+                    enterGimList(op, name);
+                }
+                else{
+                    op = MID_READINT;
+                    enterGimList(op, name);
+                }
+            }
+            else{                                           ///否则就是非法读入
+                error(Read_not_legal);
+            }
+//            stateList.push_back(tmp);
             while(token == ","){
                 getToken();
-                string tmp = identifier();
-                stateList.push_back(tmp);
+                name = identifier();
+                BaseItem *bi = curNode->findItemGlobal(name);   ///判断是不是往Var变量读入
+                if(bi->getType() == "VAR"){
+                    VarItem *tmp = (VarItem*)bi;
+                    if(bi->getIsChar() == true){
+                        op = MID_READCHAR;
+                        enterGimList(op, name);
+                    }
+                    else{
+                        op = MID_READINT;
+                        enterGimList(op, name);
+                    }
+                }
+                else{                                           ///否则就是非法读入
+                    error(Read_not_legal);
+                }
+//                stateList.push_back(tmp);
             }
-            enterGimList(op, stateList);        ///<WRITE, a, b, c, ...>
+//            enterGimList(op, stateList);        ///<READ, a, b, c, ...>
             if(token != ")"){
                 error(Right_parenthese); //缺少')'
             }
@@ -1170,12 +1223,11 @@ void readStatement()
 
 void writeStatement()
 {
-    string state;                                   ///"liuhaibo"
+    string name;                                   ///"liuhaibo"
     string express;                                 ///-a*b + b*c
     MIDOp op;
 
     if(symbol == "WRITE"){
-        op = MID_WRITE;
         getToken();
         if(token != "("){
             error(Left_parenthese); //write后面缺少'('
@@ -1183,14 +1235,24 @@ void writeStatement()
         else{
             getToken();
             if(token == "\""){  //是字符串(后面可能会跟着一个Only one表达式)
-                string state = isString();    ///"liuhaibo"
+                string name = isString();    ///"liuhaibo"
+                op = MID_WRITESTR;                      　///写字符串
+                enterGimList(MID_WRITESTR, name);      　 ///<WRITE, liuhaibo>
                 if(token == ","){
                     getToken();
                     express = expression();     ///-a*b + b*c
-                    enterGimList(op, state, express);   ///<WRITE, liuhaibo, -a*b>
+                    BaseItem *bi = curNode->findItemGlobal(express);
+                    if(bi->getIsChar() == true){           ///写char
+                        op = MID_WRITECHAR;
+                        enterGimList(MID_WRITECHAR, express);
+                    }
+                    else{                                   ///写int
+                        op = MID_WRITEINT;
+                        enterGimList(MID_WRITEINT, express);
+                    }
                 }
                 else{   //空语句
-                    enterGimList(op, state);            ///<WRITE, liuhaibo>
+                    ;
                 }
             }
             else if(token == "+"
@@ -1198,7 +1260,15 @@ void writeStatement()
                     || symbol == "IDENTIFIER"){ //是表达式
 //                getToken();               这个错误语法分析时没有检查出来
                 express = expression();
-                enterGimList(op, express);              ///<WRITE, -a*b>
+                BaseItem *bi = curNode->findItemGlobal(express);
+                if(bi->getIsChar() == true){           ///写char
+                    op = MID_WRITECHAR;
+                    enterGimList(MID_WRITECHAR, express);
+                }
+                else{                                   ///写int
+                    op = MID_WRITEINT;
+                    enterGimList(MID_WRITEINT, express);
+                }
             }
             else{
                 error(Not_string_expression); //write括号里面既不是字符串，也不是表达式
@@ -1258,6 +1328,10 @@ void forStatement() //for循环语句
             op = MID_ASSIGN;
             getToken();
             t1 = expression();
+            BaseItem *bi = curNode->findItemGlobal(tmp);
+            if(bi != NULL && bi->getType() == "CONST"){    ///如果是const就使用assign_i
+                op = MID_ASSIGN_I;
+            }
             enterGimList(op, t1, i);            ///i := t1 --> <:=, t1, i>
         }
         if(symbol != "DOWNTO" && symbol != "TO"){
@@ -1277,6 +1351,7 @@ void forStatement() //for循环语句
             getToken();
             statement();
             string tmp = getTmp();
+            enterTmp(tmp);
             enterGimList(MID_ASSIGN_I, "1", tmp);
             enterGimList(selfOp, i, tmp, i);    ///i := i + 1 --> <+/-, i, "1", i>
             if(selfOp == MID_ADD){

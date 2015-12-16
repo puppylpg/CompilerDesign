@@ -23,9 +23,13 @@ enum MIDOp{                     //MIDOp是一种类型，代表X元式的操作�
     MID_EQ,
     MID_NE,                     //注意MID_NE和MID_NEG
     MID_LABEL,
+    MID_FLABEL,
     MID_JMP,
-    MID_WRITE,
-    MID_READ,
+    MID_WRITEINT,
+    MID_WRITECHAR,
+    MID_WRITESTR,
+    MID_READCHAR,
+    MID_READINT,
     MID_RETURN
 };
 
@@ -126,6 +130,7 @@ public:
 };
 
 extern vector<Gimple*> gimList;
+extern const char *opMsg[];
 
 extern void enterGimList(MIDOp op, string result);
 extern void enterGimList(MIDOp op, vector<string> stateList);

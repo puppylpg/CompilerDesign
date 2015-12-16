@@ -3,27 +3,31 @@
 #include <iostream>
 
 const char *opMsg[] = {                 //op对应的“可视”形式
-    "+",
-    "-",
-    "*",
-    "/",
-    "ASSIGN",
-    "ASSIGN_I",
-    "NEG",
-    "LW",
-    "SW",
-    "CALL",
-    ">",
-    ">=",
-    "<",
-    "<=",
-    "=",
-    "<>",
-    "LABEL",
-    "JMP",
-    "WRITE",
-    "READ",
-    "RETURN"
+    "+",                //add    c = a + b : <+, a, b, c> : add a, b; move c, a
+    "-",                //sub
+    "*",                //mul
+    "/",                //div
+    "ASSIGN",           //mov
+    "ASSIGN_I",         //mov
+    "NEG",              //<neg, result, tmp> : neg result; move tmp, result
+    "LW",               //result:=op1[op2] <lw, op1, op2, result> mov result, [op1+op2*SIZE]
+    "SW",               //op1[op2]:=result <sw, op1, op2, result> mov [op1+op2*SIZE], result
+    "CALL",             //call || <call, haha, tmp> : call, haha; move tmp, exa
+    ">",                //cmp & jg  --> jle  //我都是不符合条件则跳转
+    ">=",               //cmp & jge --> jl
+    "<",                //cmp & jl  --> jge
+    "<=",               //cmp & jle --> jg
+    "=",                //cmp & je  --> jne
+    "<>",               //cmp & jne --> je
+    "LABEL",            //直接生成标签和冒号
+    "FLABEL",           //生成函数名，与普通LABEL进行区分
+    "JMP",              //jmp
+    "WRITEINT",
+    "WRITECHAR",
+    "WRITESTR",
+    "READCHAR",
+    "READINT",
+    "RETURN"            //ret
 };
 
 vector<Gimple*> gimList;                //存放X元式的对象

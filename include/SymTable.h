@@ -113,7 +113,7 @@ public:
     void addCurItems(string itemName, BaseItem* item);
     void setParent(Node *parent);
 
-    BaseItem* findItem(string itemName);
+    BaseItem* findItem(string itemName);            ///findItem只是在findItemGlobal里调用，因此没必要将其变成一个成员函数
     BaseItem* findItemGlobal(string itemName);
 };
 
