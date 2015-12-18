@@ -1,9 +1,11 @@
 #include <fstream>
 #include "Assembly.h"
 #include "Gimple.h"     //vector<Gimple*> gimList;
-#include "SymTable.h"
+#include "SymTable.h"   //root/curNode
 #include <initializer_list>
 #include <cstdlib>      //atoi()
+#include <string>
+#include <cstring>      //strtok()
 
 #define JMP "jmp"
 #define CALL "call"
@@ -56,6 +58,30 @@ void genAssembly(initializer_list<string> args)
     outfile << endl;
 }
 
+///每次进入一个函数，都要把curNode定位到符号表的相应位置
+///每退出一个函数，都要把curNode返回到原来符号表的相应位置
+void findCurNode(string wholeName)
+{
+    //string -> c_str
+    char *s = new char [wholeName.length() + 1];
+    strcpy(s, str.c_str());
+    //split c_str by strtok
+    char *p;
+    p = strtok(s, "_");
+    //the first "MAIN"
+    curNode = root;
+    //the left is/are funcName/procName
+    while(p){
+        p = strtok(NULL, "_");
+        //c_str -> string
+        string nodeName = string(p);
+        curNode = curNode->findItem(nodeName);
+        if(curNode == NULL){    ///除非之前的函数全名生成错了，否则不可能为NULL
+            cout << "Liu Haibo is going to die!!!" << endl;
+        }
+    }
+}
+
 string findAddr(string itemName, bool index)
 {
     VarItem *item = curNode->findItemGlobal(itemName);
@@ -77,7 +103,7 @@ string findAddr(string itemName, bool index)
         genAssembly(MOV, reg[reg3], ",", "[ebp - " + SIZE + "]");  ///mov reg3, [ebp - 4]
         int i = offLevel;
         while(i-- > 1){                             ///reg[reg3]存储的是变量所在层的基地址
-            genAssembly(MOV, reg[reg3], "[" + reg[reg3] + " - " + SIZE + "]")  ///mov reg3, [reg3 - 4]
+            genAssembly(MOV, reg[reg3], ",", "[" + reg[reg3] + " - " + SIZE + "]");  ///mov reg3, [reg3 - 4]
         }
         if(index){
             addr = "[" + reg[reg3] + "-" + offset + "+" + reg[reg2]*SIZE + "]";
@@ -93,20 +119,46 @@ void memToReg(string op, x86_REGISTER objReg, string itemName, bool index)///将
 {
     //先将变量从内存移到寄存器
     string addr = findAddr(itemName, index);
-    genAssembly(op, reg[objReg], addr);
+    genAssembly(op, reg[objReg], ",", addr);
 }
 
 void regToMem(string op, string itemName, x86_REGISTER srcReg, bool index)     ///将寄存器tmpReg移动到内存中
 {
     //再将寄存器的值移到result
     string addr = findAddr(itemName, index);
-    genAssembly(op, addr, reg[srcReg]);
+    genAssembly(op, addr, ",", reg[srcReg]);
 }
 
 void constToMem(string op, string itemName, string num, bool index)
 {
     string addr = findAddr(itemName, index);
-    genAssembly(op, addr, num);
+    genAssembly(op, addr, ",", num);
+}
+
+void pushSL(string nodeName)
+{
+    string pos = "[esp - " 3*SIZE + "]";
+    string SL;
+
+    if(curNode->findItem(nodeName) != NULL){    ///如果调用的函数是孩子，则静态链为本函数的ebp
+        SL = "ebp";
+    }
+    else if(curNode->getParent()->findItem(nodeName)){  ///如果调用的函数是亲兄弟，则静态链为本函数的静态链
+        string base = "[ebp - 4]";
+        genAssembly(MOV, reg[reg0], ",", base);
+        SL = reg[reg0];
+    }
+    else{                                       ///如果调用的函数是当前节点的祖先
+        int curLevel = curNode->getLevel();
+        int objLevel = curNode->findItemGlobal(nodeName)->getLevel() - 1;
+        int offLevel = curLevel - objLevel;
+        genAssembly(MOV, reg[reg3], ",", "[ebp - " + SIZE + "]");
+        while(offLevel-- > 1){
+            genAssembly(MOV, reg[reg3], ",", "[" + reg[reg3] + " - " + SIZE + "]");
+        }
+        SL = reg[reg3];
+    }
+    genAssembly({MOV, pos, ",", SL});
 }
 
 /*********************************************************************/
@@ -139,6 +191,7 @@ void parseOrder(Gimple *gimple)
 /*
  *函数调用
  * 1.压参数（压的是参数的地址）；
+ * 2.提前把静态链压到栈中合适的位置（esp+3*SIZE的位置）；
  * 2.调用函数
  * 3.回收参数
  * 4.如果有返回值，将返回值（在eax中）赋予接收者。
@@ -147,8 +200,8 @@ void parseOrder(Gimple *gimple)
 /*
  *函数被调用
  * 1.压epb；
- * 2.压静态链！！！！！
- * 3.调整ebp到esp的位置；
+ * 2.调整ebp到esp的位置；
+ * 3.esp自加4，因为ebp下面已经被提前填上静态链了；
  * 4.进行一系列操作，最后走的时候别忘了leave。
  */
 
@@ -183,19 +236,18 @@ void label(Gimple2 *gim2)
     genAssembly({lab, ":"});
 }
 
-//<FLABEL, label>
+//<FLABEL, fullName>
 void flabel(Gimple2 *gim2)  ///TODO
 {
-    string lab = gim2->getResult();
-    genAssembly({lab, ":"})
+    string fullName = gim2->getResult();
+    genAssembly({fullName, ":"})
     genAssembly({"enter"});         ///create a stack frame
+    genAssembly({SUB, "esp", ",", SIZE});   ///esp-4，因为这儿已经填好静态链了
 
-    ///生成静态链！！！
-    string funcName = lab.substr(lab.find_last_of('_') + 1);    ///获取函数的名字
-    string addr = findAddr(funcName, false);
-    BaseItem *
+    findCurNode(fullName);          ///定位curNode指针
+    ///由调用者生成静态链！！！
+
     genAssembly({})
-    ///分为__MAIN__函数和其他函数两种
 }
 
 //<RETURN, "">
@@ -209,8 +261,11 @@ void ret(Gimple2 *gim2)     ///TODO:不止是一个ret，还要调整栈帧呢
 void call_G2(Gimple2 *gim2)         //无实参的procedure
 {
     string name = gim2->getResult();
+
+    ///生成静态链！！！
+    pushSL(func);
     genAssembly({CALL, name});
-    genAssembly({ADD, "esp", SIZE});
+    genAssembly({ADD, "esp", ",", SIZE});
 }
 
 //<read ch>
@@ -224,7 +279,7 @@ void readInt(Gimple2 *gim2)
     genAssembly({CALL, "readInt"});
     ///无须回收参数
     ///将函数的结果给到接收者
-    genAssembly({MOV, addr, "eax"});
+    genAssembly({MOV, addr, ",", "eax"});
 }
 
 void readChar(Gimple2 *gim2)
@@ -237,7 +292,7 @@ void readChar(Gimple2 *gim2)
     genAssembly({CALL, "readChar"});
     ///无须回收参数
     ///将函数的结果给到接收者
-    genAssembly({MOV, addr, "eax"});
+    genAssembly({MOV, addr, ",", "eax"});
 }
 
 //<write str>
@@ -251,7 +306,7 @@ void writeStr(Gimple2 *gim2)
     ///调用函数
     genAssembly({CALL, "printStr"});
     ///回收prev ebp和参数str
-    genAssembly(ADD, "esp", SIZE)       ///压了一个参数，静态链在函数调用结束的时候由leave指令回收了
+    genAssembly(ADD, "esp", ",", SIZE);       ///压了一个参数，静态链在函数调用结束的时候由leave指令回收了
     ///void 函数，无需将eax赋值给接收者
 }
 
@@ -265,7 +320,7 @@ void writeInt(Gimple2 *gim2)
     ///调用函数
     genAssembly({CALL, "printInt"});
     ///回收prev ebp和参数str
-    genAssembly(ADD, "esp", SIZE)       ///压了一个参数
+    genAssembly(ADD, "esp", ",", SIZE);       ///压了一个参数
     ///void 函数，无需将eax赋值给接收者
 }
 
@@ -279,7 +334,7 @@ void writeChar(Gimple2 *gim2)
     ///调用函数
     genAssembly({CALL, "printChar"});
     ///回收prev ebp和参数str
-    genAssembly(ADD, "esp", SIZE)       ///压了一个参数
+    genAssembly(ADD, "esp", ",", SIZE);       ///压了一个参数
     ///void 函数，无需将eax赋值给接收者
 }
 /*
@@ -334,8 +389,11 @@ void call_G3(Gimple3 *gim3)     //无实参的函数
     string func = gim3->getOp1();
     string result = gim3->getResult();
     string addr = findAddr(result, false);
+
+    ///生成静态链！！！
+    pushSL(func);
     genAssembly({CALL, func});
-    genAssembly({MOV, addr, "eax"});
+    genAssembly({MOV, addr, ",", "eax"});
 }
 
 /*
@@ -353,10 +411,13 @@ void call_G3_list(Gimple3_list *gim3_list)  //有实参无返回值的procedure
         string addr = findAddr(*rit, false);
         genAssembly({PUSH, addr});
     }
+
+    ///生成静态链！！！
+    pushSL(func);
     genAssembly({CALL, proc});
 
     int num = paraList.size();
-    genAssembly({ADD, "esp", num*SIZE});
+    genAssembly({ADD, "esp", ",", num*SIZE});
 }
 
 /*
@@ -409,7 +470,7 @@ void add_sub_mult(Gimple4 *gim4)
     //op1到寄存器reg1
     memToReg(MOV, reg1, op1, false);
     //add op1, op2
-    genAssembly({op, reg[reg1], reg[reg2]});
+    genAssembly({op, reg[reg1], ",", reg[reg2]});
     //mov result, op1
     regToMem(MOV, addr, reg1, false);
 }
@@ -429,7 +490,7 @@ void div(Gimple4 *gim4)
 
     memToReg(MOV, REG_EAX, op1, false);
     genAssembly({"imult", addr_op2});
-    genAssembly(MOV, addr_result, reg[REG_EAX]);
+    genAssembly(MOV, addr_result, ",", reg[REG_EAX]);
 }
 
 //< >=, p, q, falseLabel>
@@ -447,7 +508,7 @@ void j_condition(Gimple4 *gim4)
     //q --> reg1
     memToReg(MOV, reg1, q, false);
     //cmp p, q
-    genAssembly({"cmp", regs[reg2], regs[reg1]});
+    genAssembly({"cmp", regs[reg2], ",", regs[reg1]});
     //jxx falseLabel
     switch(op){
         case MID_GE : genAssembly({"jl", label}); break;
@@ -477,11 +538,15 @@ void call_G4_list(Gimple4_list *gim4_list)  //带参数函数
         string addr = findAddr(*rit, false);
         genAssembly({PUSH, addr});
     }
+
+    ///生成静态链！！！
+    pushSL(func);
     genAssembly({CALL, func});
 
+
     int num = paraList.size();
-    genAssembly({ADD, "esp", num*SIZE});
-    genAssembly({MOV, addr_result, "eax"});
+    genAssembly({ADD, "esp", ",", num*SIZE});
+    genAssembly({MOV, addr_result, ",", "eax"});
 }
 
 /*

@@ -42,7 +42,8 @@ void error(Error id)
         "Isn't a function but is called like a function",
         "Function shouldn't has parameter(s)",
         "Function should has parameter(s)",
-        "Error read object(not read into variable)"
+        "Error read object(not read into variable)",
+        "The number of real parameters is not corrcet"
     };
 
     fprintf(stderr, "[ERROR] %d:%d -- %s\n",

@@ -9,7 +9,7 @@ Node* initSymTable()
 {
     Node *tmp = new Node();
     tmp->setParent(NULL);         //根节点的标志
-    tmp->setName("__ROOT__");       ///相对于正常的函数名来说要不合法
+    tmp->setName("__MAIN__");       ///相对于正常的函数名来说要不合法
     tmp->setBaseOffset(0);          ///为了变量（属于下一层）的偏移
     tmp->setLevel(0);               ///第零层
     return tmp;
@@ -168,6 +168,11 @@ int Node::getRet()
     return this->ret;
 }
 
+int Node::getOffset()
+{
+    return this->offset;
+}
+
 string Node::getHeader()
 {
     return this->header;
@@ -186,6 +191,11 @@ Node* Node::getParent()
 void Node::setRet(int ret)
 {
     this->ret = ret;
+}
+
+void Node::setOffset(int offset)
+{
+    this->offset = offset;
 }
 
 void Node::setHeader(string header)

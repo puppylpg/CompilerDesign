@@ -9,14 +9,15 @@ using namespace std;
 
 /*
 //用枚举去定义BaseItem的type貌似确实比用string更好一些，
-(对于这种数量确定的，用枚举，类似变量名那种无边无际的，用string更好)
+(对于这种数量确定的，用枚举，在写代码的时候还能自动提示补全，类似变量名那种无边无际的，用string更好)
 但是这次就不改了吧
 enum ItemType{
     ItemType_CONST,
     ItemType_VAR,
     ItemType_ARRAY,
     ItemType_PROCEDURE,
-    ItemType_FUNCTION
+    ItemType_FUNCTION,
+    ItemType_PARA
 };
 */
 
@@ -95,20 +96,24 @@ public:
 
 class Node : public BaseItem        //函数或过程，作为节点
 {
+public:
+    vector<VarItem *> *paraSection;
 private:
-    int ret;
+    int ret;    ///貌似没用，返回值是放在栈上记录函数的地方的
+    int offset;
     string header;                      ///name的头前缀，合成新的name，从而允许同名不同域的情况
     map<string, BaseItem*> curItems;  //存储当前程序段的属性变量
     Node *parent;
 
 public:
-
     int getRet();
+    int getOffset();
     string getHeader();
     map<string, BaseItem*> getCurItems();    //ItemSeg
     Node* getParent();
 
     void setRet(int ret);
+    void setOffset(int offset);
     void setHeader(string header);
     void addCurItems(string itemName, BaseItem* item);
     void setParent(Node *parent);

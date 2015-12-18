@@ -18,7 +18,7 @@ int length;               ///判断var是不是数组
 
 
 void proced();               //程序
-void subproced();            //分程序
+void subproced(string nodeName);            //分程序
 void constDeclare();        //常量说明部分
 void constDefine();         //常量定义
 string identifier();        //标识符定义
@@ -30,8 +30,8 @@ void varDefine();
 void type_all();     //类型
 void procedureDeclare(); //过程说明部分
 Node* procedureHead();    //过程首部
-void parameterTable();   //形式参数表
-void parameterSegment(); //形式参数段
+void parameterTable(vector<VarItem *> *&p);   //形式参数表
+void parameterSegment(vector<VarItem *> &v); //形式参数段
 void functionDeclare();  //函数说明部分
 Node* functionHead();     //函数首部
 void multiStatement();   //复合语句
@@ -40,7 +40,7 @@ void statement();    //语句
 string expression();   //表达式
 string term(); //项
 string factor();   //因子
-vector<string> realParameterTable();   //实在参数表
+void realParameterTable(string funcName);   //实在参数表
 string realParameter();    //实在参数
 void conditionStatement();   //条件语句
 void condition();    //条件
@@ -91,15 +91,15 @@ string getTmp()
     return tmp;
 }
 
-VarItem* enterTmp(string tmp)   ///将临时变量加入符号表
+VarItem* createTmp(string tmp)   ///将临时变量加入符号表
 {
         type = "VAR";
         VarItem *item = new VarItem(tmp, type, false, false);   ///isChar = false，所有的tmp都是integer
         int offset = curNode->getBaseOffset();
-        curNode->setBaseOffset(offset + SIZE);
+        offset += SIZE;
+        curNode->setBaseOffset(offset);
         item->setOffset(offset);
         item->setLevel(curNode->getLevel() + 1);
-        enterItem(tmp, item);
 }
 
 //是否需要调用getToken():
@@ -111,9 +111,9 @@ void proced()               //程序
 {
     root = initSymTable();   ///
     curNode = root;
-    enterGimList(MID_JMP, "__MAIN__");
+    enterGimList(MID_JMP, root->getName());
 
-    subproced();            //分程序
+    subproced(root->getName());            //分程序
     if(token != "."){
         error(Ending);         //error:程序不正确的结束方式
     }
@@ -121,7 +121,7 @@ void proced()               //程序
     printStatement("This is a proced statement!");
 }
 
-void subproced()            //分程序
+void subproced(string nodeName)            //分程序
 {
     if(token == "const"){   //常量说明部分
 //        getToken();           //进入常数说明部分还会再次判断是否是const，所以这里先不读取下一个token
@@ -143,9 +143,11 @@ void subproced()            //分程序
         }
     }
 
-    if(curNode->getParent() == NULL){
-        enterGimList(MID_FLABEL, "__MAIN__");    ///程序正式开始的标志
-    }
+//    if(curNode->getParent() == NULL){
+//        enterGimList(MID_FLABEL, "__MAIN__");    ///程序正式开始的标志
+//    }
+//    else{
+    enterGimList(MID_FLABEL, nodeName);     ///在复合语句之前才应该生成函数标签
 
     multiStatement();       //复合语句
 
@@ -355,7 +357,8 @@ void varDefine()        //变量说明（定义）
         if(length != 0){            ///是数组
             type = "ARRAY";
             ArrayItem *item = new ArrayItem(*it, type, isChar, length);
-            curNode->setBaseOffset(offset + SIZE * length);     ///修改基础偏移量
+            offset += SIZE * length;
+            curNode->setBaseOffset(offset);     ///修改基础偏移量
             item->setOffset(offset);
             item->setLevel(curNode->getLevel() + 1);           ///修改变量层数
             enterItem(*it, item);           ///将创建的表项加入curItems
@@ -363,7 +366,8 @@ void varDefine()        //变量说明（定义）
         else{                       ///不是数组，是变量
             type = "VAR";
             VarItem *item = new VarItem(*it, type, isChar, passByAddr);
-            curNode->setBaseOffset(offset + SIZE);              ///修改基础偏移量
+            offset += SIZE;
+            curNode->setBaseOffset(offset);              ///修改基础偏移量
             item->setOffset(offset);
             item->setLevel(curNode->getLevel() + 1);           ///修改变量层数
             enterItem(*it, item);           ///将创建的表项加入curItems
@@ -418,29 +422,18 @@ void type_all()     //类型
 
 void procedureDeclare() //过程说明部分
 {
-
-///语法分析时的版本
-//    procedureHead();
-//    subproced();
-//    while(token == ";"){
-//        getToken();
-//        if(token == "procedure"){
-//            procedureHead();
-//            subproced();
-//        }
-//    }
-
 ///登记符号表时新简化版本
     do{
         formerNode = curNode;                       ///formerNode指向当前节点
         Node *childNode = procedureHead();          ///curNode和childNode指向新建的子节点item
         curNode = formerNode;                       ///curNode又指向了父节点
         string childName = childNode->getName();    ///获取子节点名字
+        string header = childNode->getHeader();
         enterItem(childName, childNode);            ///将子节点加入当前节点的childs
         curNode = childNode;                        ///curNode又指向了子节点
         curNode->setParent(formerNode);             ///子节点的parent指向父节点
 
-        subproced();
+        subproced(header + childName);
         enterGimList(MID_RETURN, "");   ///过程结束要return
 
         curNode = curNode->getParent();             ///子程序结束，回到父节点，相当于弹栈
@@ -474,6 +467,7 @@ Node* procedureHead()    //过程首部
     item->setType(type);         ///
     item->setBaseOffset(0);         ///设置变量基础偏移量
     item->setLevel(formerNode->getLevel() + 1); ///设置当前节点
+    item->paraSection = NULL;       ///先设为null
 
     if(token == "procedure"){
         getToken();
@@ -483,10 +477,10 @@ Node* procedureHead()    //过程首部
 
         ///生成过程的名称Label，代表过程的开始，
         ///名称要能体现出层次，从而允许同名不同域的情况
-        enterGimList(MID_FLABEL, header + itemName);
+//        enterGimList(MID_FLABEL, header + itemName);
 
         if(token == "("){
-            parameterTable();
+            parameterTable(item->paraSection);     ///以引用的形式接收
         }
         if(token != ";"){
             error(Semicolon); //error:缺少';'
@@ -502,14 +496,16 @@ Node* procedureHead()    //过程首部
     return curNode;
 }
 
-void parameterTable()   //形式参数表
+void parameterTable(vector<VarItem *> *&p)   //形式参数表
 {
+    vector<VarItem *> v;
+    p = &v;                 ///p为vector<VarItem *>型指针，就是item的paraSection
     if(token == "("){
         getToken();
-        parameterSegment();
+        parameterSegment(v);    ///以引用形式接收
         while(token == ";"){
             getToken();
-            parameterSegment();
+            parameterSegment(v);
         }
         if(token != ")"){
             error(Right_parenthese); //error:形式参数表缺少')'
@@ -522,10 +518,11 @@ void parameterTable()   //形式参数表
     printStatement("This is a parameterTable statement!");
 }
 
-void parameterSegment() //形式参数段
+void parameterSegment(vector<VarItem *> &v) //形式参数段
 {
     vector<string> itemNames;   ///形参
-    string type = "VAR";        ///形参表内的类型是var
+//    string type = "VAR";        ///形参表内的类型是var
+    string type = "PARA";        ///形参表内的类型是para
     bool passByAddr = false;
                     ///name/type/isChar/passByAddr
 
@@ -553,42 +550,40 @@ void parameterSegment() //形式参数段
 
     printStatement("This is a parameterSegment statement!");
 
+    ///形参和局部变量区分开，所以有两套偏移
     vector<string>::iterator it;      ///登记形参到当前子程序的符号表
-    for(it = itemNames.begin(); it != itemNames.end(); it++){
-        int offset = curNode->getBaseOffset();                      ///为每一个变量添加offset
+    int i;          ///计数，记录偏移
+    for(it = itemNames.begin(), i = 1; it != itemNames.end(); it++, i++){
+        int offset = i * SIZE;                      ///为每一个变量添加offset
         VarItem *item = new VarItem(*it, type, isChar, passByAddr);
-        curNode->setBaseOffset(offset + SIZE);                      ///修改基础偏移
         item->setOffset(offset);
         item->setLevel(curNode->getLevel() + 1);                    ///设置当前层数
         enterItem(*it, item);
+        v.push_back(item);
     }
 }
 
 void functionDeclare()  //函数说明部分
 {
-
-///语法分析时的版本
-//    functionHead();
-//    subproced();
-//    while(token == ";"){
-//        getToken();
-//        if(token == "function"){
-//            functionHead();
-//            subproced();
-//        }
-//    }
-
 ///登记符号表时新简化版本
     do{
         formerNode = curNode;                       ///formerNode指向当前节点
         Node *childNode = functionHead();           ///curNode和childNode指向新建的子节点item
         curNode = formerNode;                       ///curNode又指向了父节点
+
+        ///为FUNCTION变量设置偏移
+        int offset = curNode->getBaseOffset();
+        offset += SIZE;
+        curNode->setBaseOffset(offset);
+        childNode->setOffset(offset);
+
         string childName = childNode->getName();    ///获取子节点名字
+        string header = childNode->getHeader();
         enterItem(childName, childNode);            ///将子节点加入当前节点的childs
         curNode = childNode;                        ///curNode又指向了子节点
         curNode->setParent(formerNode);             ///子节点的parent指向父节点
 
-        subproced();
+        subproced(header + childName);
 
         enterGimList(MID_RETURN, "");       ///函数结束要return
 
@@ -623,6 +618,7 @@ Node* functionHead()     //函数首部
     item->setType(type);         ///
     item->setBaseOffset(0);         ///设置变量基础偏移量
     item->setLevel(formerNode->getLevel() + 1); ///设置当前节点
+    item->paraSection = NULL;       ///先设为null
 
     if(token == "function"){
         getToken();
@@ -632,10 +628,10 @@ Node* functionHead()     //函数首部
 
         ///生成过程的名称Label，代表过程的开始，
         ///名称要能体现出层次，从而允许同名不同域的情况
-        enterGimList(MID_FLABEL, header + itemName);
+//        enterGimList(MID_FLABEL, header + itemName);
 
         if(token == "("){
-            parameterTable();
+            parameterTable(item->paraSection);
         }
         if(token != ":"){
             error(Colon); //error:函数首部缺少':'
@@ -752,15 +748,15 @@ void statement()    //语句
             }
 
             op = MID_CALL;
-            vector<string> realList = realParameterTable();       //写成形式参数表了。。。
+            realParameterTable(result);       //写成形式参数表了。。。
             ///调用过程的call语句。带实参
-            enterGimList(MID_CALL, item->getHeader() + result, realList);       ///haha(a,b,c) --> <CALL, haha, <vector> >
+            enterGimList(MID_CALL, item->getHeader() + result, "");       ///haha(a,b,c) --> <CALL, haha>
         }
         else{                       ///既不是赋值语句，也不是带实参表的过程调用，则为不带实参表的过程调用
 
             Node *item = (Node *)curNode->findItemGlobal(result);
             op = MID_CALL;
-            enterGimList(MID_CALL, item->getHeader() + result); ///haha --> <CALL, haha>
+            enterGimList(MID_CALL, item->getHeader() + result, ""); ///haha --> <CALL, haha>
         }
     }
     else if(symbol == "IF"){
@@ -834,7 +830,8 @@ string expression()   //表达式
     result = term();
     if(flag){                                       ///如果第一个是负数，生成neg指令
         tmp = getTmp();                            ///tmp = t0
-        enterTmp(tmp);
+        VarItem *vi = createTmp(tmp);
+        enterItem(tmp, vi);                 ///tmp变量登记符号表
         enterGimList(MID_NEG, result, tmp); ///<neg, a, t0>
     }
 
@@ -843,13 +840,15 @@ string expression()   //表达式
         getToken();
         if(!tmp.empty()){                           ///如果一开始生成了neg指令
             string tmptmp = getTmp();
-            enterTmp(tmptmp);
+            VarItem *vi = createTmp(tmptmp);
+            enterItem(tmptmp, vi);
             enterGimList(op, tmp, term(), tmptmp); ///eg: b=term(), <+, t0, b, t1>
             tmp = tmptmp;                        ///tmp = t1
         }
         else{                                       ///如果一开始没生成neg指令
             tmp = getTmp();
-            enterTmp(tmp);
+            VarItem *vi = createTmp(tmp);
+            enterItem(tmp, vi);
             enterGimList(op, result, term(), tmp);  ///eg: <+, a, b, t0>
         }
     }
@@ -873,13 +872,15 @@ string term() //项
         getToken();
         if(!tmp.empty()){
             string tmp2 = getTmp();
-            enterTmp(tmp2);
+            VarItem *vi = createTmp(tmp2);
+            enterItem(tmp2, vi);
             enterGimList(op, tmp, factor(), tmp2);   ///<*, t0, c, t1>
             tmp = tmp2;                            ///tmp = t1
         }
         else{
             tmp = getTmp();                            ///tmp = t0
-            enterTmp(tmp);
+            VarItem *vi = createTmp(tmp);
+            enterItem(tmp, vi);
             enterGimList(op, result, factor(), tmp);    ///<*, a, b, t0>
         }
     }
@@ -913,13 +914,19 @@ string factor()   //因子
 
         if(token == "["){                       //“标识符[]”，即数组的某一项
 
+            bool char_int;
             if(curNode->findItemGlobal(result)->getType() != "ARRAY"){
                 error(Not_array); ///不是数组却使用数组调用
             }
+
+            char_int = curNode->findItemGlobal(result)->getIsChar();
+
             getToken();
             string op2 = expression();      ///eg: x := a[2]--> <LW, a, 2, tmp>; <":=", tmp, ___, x>
             string tmp = getTmp();
-            enterTmp(tmp);
+            VarItem *vi = createTmp(tmp);
+            vi->setIsChar(char_int);        ///tmp可能是char，因为数组项可能是char
+            enterItem(tmp, vi);
             enterGimList(MID_LW, result, op2, tmp); ///取数组的项到tmp
             result = tmp;                           ///将tmp返回到上一级，进行赋值语句处理
             if(token != "]"){
@@ -936,15 +943,19 @@ string factor()   //因子
                 error(Not_function);    ///不是函数却像函数一样调用
             }
             else{
-                if(item->getCurItems().empty()){
+                if(item->paraSection == NULL){
                     error(Function_should_without_para); ///函数不带参数却使用了参数调用
                 }
             }
 
-            vector<string> op2 = realParameterTable();      ///类比数组,CALL eg: x := haha(a)--> <CALL, haha, <vector>, tmp>
+            int char_int = item->getIsChar();
+
+            realParameterTable(result);      ///CALL eg: x := haha(a)--> <CALL, haha, tmp>
             string tmp = getTmp();
-            enterTmp(tmp);
-            enterGimList(MID_CALL, item->getHeader() + result, op2, tmp);   ///取函数到tmp
+            VarItem *vi = createTmp(tmp);
+            vi->setIsChar(char_int);        ///tmp可能是char，因为函数返回值可能是char
+            enterItem(tmp, vi);
+            enterGimList(MID_CALL, item->getHeader() + result, tmp);   ///取函数到tmp
             result = tmp;                               ///将tmp返回到上一级，进行赋值语句处理
         }
         else{   //空语句
@@ -953,11 +964,14 @@ string factor()   //因子
             BaseItem *item = curNode->findItemGlobal(result);
             if(item->getType() == "FUNCTION"){
                 Node *node = (Node*)curNode->findItemGlobal(result);    ///强制转型为函数类型
-                if(node->getCurItems().empty() == false){   ///函数本应该带参数
+                if(node->paraSection != NULL){   ///函数本应该带参数
                     error(Function_should_with_para); ///函数带参数却使用了无参数调用
                 }
+                int char_int = node->getIsChar();
                 string tmp = getTmp();
-                enterTmp(tmp);
+                VarItem *vi = createTmp(tmp);
+                vi->setIsChar(char_int);
+                enterItem(tmp, vi);
                 enterGimList(MID_CALL, node->getHeader() + result, tmp);
                 result = tmp;                           ///返回tmp到上一层
             }
@@ -969,7 +983,8 @@ string factor()   //因子
                 ///TODO:无符号整数int --> string，之后对于四元式都需要atoi(str.c_str())
         string s = string(str);
         string tmp = getTmp();
-        enterTmp(tmp);
+        VarItem *vi = createTmp(tmp);
+        enterItem(tmp, vi);
         enterGimList(MID_ASSIGN_I, s, tmp);     ///数字常量应该用ASSIGN_I
         result = tmp;
     }
@@ -979,9 +994,13 @@ string factor()   //因子
     return result;
 }
 
-vector<string> realParameterTable()   //实在参数表
+void realParameterTable(string funcName)   //实在参数表
 {
     vector<string> result;              ///
+
+    Node *node = (Node *)curNode->findItemGlobal(funcName);
+    vector<VarItem *> *p = node->paraSection;
+    int totalPara = (*p).size();        ///获取形参总个数
 
     if(token == "("){
         getToken();
@@ -1002,9 +1021,23 @@ vector<string> realParameterTable()   //实在参数表
         }
     }
 
-    printStatement("This is a realParameterTable statement!");
+    if(totalPara != result.size()){
+        error(Not_equal_of_Para);             ///形参实参个数不匹配
+    }
+    else{
+        for(int i = totalPara - 1; i >= 0; i--){
+            if(一切ＯＫ){            ///TODO
+                if((*p)[i]->getPassByAddr() == false){      ///传值
+                    enterGimList(MID_PUSHPARA, result[i]);
+                }
+                else{                                       ///传址
+                    enterGimList(MID_PUSHPARAADDR, result[i]);
+                }
+            }
+        }
+    }
 
-    return result;
+    printStatement("This is a realParameterTable statement!");
 }
 
 string realParameter()    //实在参数
@@ -1128,7 +1161,8 @@ void conditionTableElement(string expState)    //情况表元素
         c = (char)num;
         s += c;
         tmp = getTmp();
-        enterTmp(tmp);
+        VarItem *vi = createTmp(tmp);
+        enterItem(tmp, vi);
         enterGimList(MID_ASSIGN_I, s, tmp);     ///常量移入寄存器<assign_i, s, tmp>
                             ///用assign_i区分开常量和变量（比如都是a，究竟是var a,还是字符a
                             ///否则由于四元式都是用string表示的，区分不开！！！）
@@ -1139,7 +1173,8 @@ void conditionTableElement(string expState)    //情况表元素
         sprintf(str, "%d", num);
         s = string(str);
         tmp = getTmp();
-        enterTmp(tmp);
+        VarItem *vi = createTmp(tmp);
+        enterItem(tmp, vi);
         enterGimList(MID_ASSIGN_I, s, tmp);
         falseLabel = getLabel("fLabel");
         enterGimList(MID_EQ, tmp, expState, falseLabel);
@@ -1351,7 +1386,8 @@ void forStatement() //for循环语句
             getToken();
             statement();
             string tmp = getTmp();
-            enterTmp(tmp);
+            VarItem *vi = createTmp(tmp);
+            enterItem(tmp, vi);
             enterGimList(MID_ASSIGN_I, "1", tmp);
             enterGimList(selfOp, i, tmp, i);    ///i := i + 1 --> <+/-, i, "1", i>
             if(selfOp == MID_ADD){
