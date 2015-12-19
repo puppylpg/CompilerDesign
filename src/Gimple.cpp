@@ -8,7 +8,7 @@ const char *opMsg[] = {                 //op对应的“可视”形式
     "*",                //mul
     "/",                //div
     "ASSIGN",           //mov
-    "ASSIGN_I",         //mov
+//    "ASSIGN_I",         //mov
     "NEG",              //<neg, result, tmp> : neg result; move tmp, result
     "LW",               //result:=op1[op2] <lw, op1, op2, result> mov result, [op1+op2*SIZE]
     "SW",               //op1[op2]:=result <sw, op1, op2, result> mov [op1+op2*SIZE], result
@@ -36,12 +36,15 @@ vector<Gimple*> gimList;                //存放四元式对象的列表
 
 void printGimple(Gimple *gimple)
 {
-    cout << opMsg[gimple->getOp()] << ",\t" << gimple->getOp1()->getName() << ",\t";
+    cout << opMsg[gimple->getOp()];
+    if(gimple->getOp1() != NULL){
+        cout << ",\t" << gimple->getOp1()->getName();
+    }
     if(gimple->getOp2() != NULL){
-        cout << gimple->getOp2()->getName() << ",\t"
+        cout << ",\t" << gimple->getOp2()->getName();
     }
     if(gimple->getResult() != NULL){
-        cout << gimple->getResult()->getName();
+        cout << ",\t" << gimple->getResult()->getName();
     }
     cout << endl;
 }

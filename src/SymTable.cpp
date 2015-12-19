@@ -29,7 +29,7 @@ void enterItem(string name, BaseItem *item)
 /*
  * BaseType
  */
- BaseItem::BaseItem(string name, string type, bool isChar)
+ BaseItem::BaseItem(string name, ItemType type, bool isChar)
  {
      this->name = name;
      this->type = type;
@@ -41,7 +41,7 @@ string BaseItem::getName()
     return this->name;
 }
 
-string BaseItem::getType()
+ItemType BaseItem::getType()
 {
     return this->type;
 }
@@ -66,7 +66,7 @@ void BaseItem::setName(string name)
     this->name = name;
 }
 
-void BaseItem::setType(string type)
+void BaseItem::setType(ItemType type)
 {
     this->type = type;
 }
@@ -89,7 +89,7 @@ void BaseItem::setBaseOffset(int baseOffset)
 /*
  * Constant
  */
-ConstItem::ConstItem(string name, string type, bool isChar, int num) : BaseItem(name, type, isChar)
+ConstItem::ConstItem(string name, ItemType type, bool isChar, int num) : BaseItem(name, type, isChar)
 {
     this->num = num;
 }
@@ -107,7 +107,7 @@ void ConstItem::setNum(int num)
 /*
  * Variable
  */
-VarItem::VarItem(string name, string type, bool isChar, bool passByAddr) : BaseItem(name, type, isChar)
+VarItem::VarItem(string name, ItemType type, bool isChar, bool passByAddr) : BaseItem(name, type, isChar)
 {
     this->passByAddr = passByAddr;
 }
@@ -135,7 +135,7 @@ void VarItem::setOffset(int offset)
 /*
  * Array
  */
-ArrayItem::ArrayItem(string name, string type, bool isChar, int length) : BaseItem(name, type, isChar)
+ArrayItem::ArrayItem(string name, ItemType type, bool isChar, int length) : BaseItem(name, type, isChar)
 {
     this->length = length;
 }

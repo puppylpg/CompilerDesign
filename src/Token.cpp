@@ -4,7 +4,7 @@ map<string, string> revWord;                        //保留字
 string charSymb[130], token, symbol;                //charSymb：单个字符对应的symbol，symbol：token类型
 
 char ch;                                            //ch：读入的字符
-int line = 1, pos, counter;                         //记录字符所在行列，counter：输出的计数器
+int line__ = 1, pos__, counter;                         //记录字符所在行列，counter：输出的计数器
 ifstream infile("source.txt");
 
 bool last_is_string = false, left_right_double_quotation = false;
@@ -60,11 +60,11 @@ void getch()
     if(!infile.eof()){
         infile.get(ch);
         if(ch == '\n'){
-            line++;
-            pos = 0;
+            line__++;
+            pos__ = 0;
         }
         else{
-            pos++;
+            pos__++;
         }
     }
     else{

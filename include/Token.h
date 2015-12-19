@@ -19,7 +19,7 @@ using namespace std;
 extern map<string, string> revWord;                        //保留字
 extern string charSymb[130], token, symbol;                //charSymb：单个字符对应的symbol，symbol：token类型
 extern ifstream infile;
-extern int line, pos;
+extern int line__, pos__;
 
 extern void createTables();
 extern void getch();

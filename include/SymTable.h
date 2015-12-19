@@ -4,43 +4,42 @@
 #include <iostream>
 #include <map>
 #include <string>
+#include <vector>
 
 using namespace std;
 
-/*
 //用枚举去定义BaseItem的type貌似确实比用string更好一些，
-(对于这种数量确定的，用枚举，在写代码的时候还能自动提示补全，类似变量名那种无边无际的，用string更好)
-但是这次就不改了吧
+//(对于这种数量确定的，用枚举，在写代码的时候还能自动提示补全，类似变量名那种无边无际的，用string更好)
 enum ItemType{
     ItemType_CONST,
     ItemType_VAR,
     ItemType_ARRAY,
     ItemType_PROCEDURE,
     ItemType_FUNCTION,
-    ItemType_PARA
+    ItemType_PARA,
+    ItemType_LABEL
 };
-*/
 
 class BaseItem{                     //基类
 private:
     string name;
-    string type;
+    ItemType type;
     bool isChar;
     int level;                      ///节点所在的层级
     int baseOffset;                 ///当前已经偏移的大小，用于方便的填写各变量的offset
 
 public:
     BaseItem(){}
-    BaseItem(string name, string type, bool isChar);
+    BaseItem(string name, ItemType type, bool isChar);
 
     string getName();
-    string getType();
+    ItemType getType();
     bool getIsChar();
     int getLevel();
     int getBaseOffset();
 
     void setName(string name);
-    void setType(string type);
+    void setType(ItemType type);
     void setIsChar(bool isChar);
     void setLevel(int level);
     void setBaseOffset(int baseOffset);
@@ -53,7 +52,7 @@ private:
 
 public:
     ConstItem(){}
-    ConstItem(string name, string type, bool isChar, int num);
+    ConstItem(string name, ItemType type, bool isChar, int num);
 
     int getNum();
 
@@ -68,7 +67,7 @@ private:
 
 public:
     VarItem(){}
-    VarItem(string name, string type, bool isChar, bool passByAddr);
+    VarItem(string name, ItemType type, bool isChar, bool passByAddr);
 
     bool getPassByAddr();
     int getOffset();
@@ -85,7 +84,7 @@ private:
 
 public:
     ArrayItem(){}
-    ArrayItem(string name, string type, bool isChar, int length);    //type为integer | char,决定数组类型
+    ArrayItem(string name, ItemType type, bool isChar, int length);    //type为integer | char,决定数组类型
 
     int getLength();
     int getOffset();

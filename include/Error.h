@@ -40,7 +40,9 @@ enum Error{
     Function_should_without_para,
     Function_should_with_para,
     Read_not_legal,
-    Not_equal_of_Para
+    Not_equal_of_Para,
+    Not_compatible_of_Para,
+    Const_address
 };
 
 extern void error(Error id);

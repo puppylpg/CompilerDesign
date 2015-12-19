@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include "SymTable.h"
 using namespace std;
 
 enum MIDOp{                     //MIDOp是一种类型，代表X元式的操作指令
@@ -11,7 +12,7 @@ enum MIDOp{                     //MIDOp是一种类型，代表X元式的操作�
     MID_MULT,
     MID_DIV,
     MID_ASSIGN,
-    MID_ASSIGN_I,
+//    MID_ASSIGN_I,
     MID_NEG,
     MID_LW,
     MID_SW,

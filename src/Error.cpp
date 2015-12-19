@@ -43,10 +43,12 @@ void error(Error id)
         "Function shouldn't has parameter(s)",
         "Function should has parameter(s)",
         "Error read object(not read into variable)",
-        "The number of real parameters is not corrcet"
+        "The number of real parameters is not corrcet",
+        "The type of the real para is not the same as formal para",
+        "Can't pass the address of a Const"
     };
 
     fprintf(stderr, "[ERROR] %d:%d -- %s\n",
-            line, pos,
+            line__, pos__,
             errorMsg[id]);
 }
