@@ -553,7 +553,6 @@ void parameterTable(vector<VarItem *> *&p)   //形式参数表
 void parameterSegment(vector<VarItem *> &v) //形式参数段
 {
     vector<string> itemNames;   ///形参
-//    string type = "VAR";        ///形参表内的类型是var
     ItemType type = ItemType_PARA;        ///形参表内的类型是para
     bool passByAddr = false;
                     ///name/type/isChar/passByAddr
@@ -861,11 +860,15 @@ BaseItem* expression()   //表达式
     }
 
     retItem = term();
-    if(flag){                                       ///如果第一个是负数，生成neg指令
+    if(flag){                                       ///如果第一个是负数
+        string cons = getConstName(0, false);
+        ConstItem *cItem = createConst(cons, 0, false);
+
         tmp = getTmp();                            ///tmp = t0
         VarItem *vi = createTmp(tmp);
         enterItem(tmp, vi);                         ///tmp变量登记符号表
-        enterGimList(MID_NEG, retItem, NULL, vi);         ///<neg, a, t0>
+
+        enterGimList(MID_SUB, cItem, retItem, vi);         ///<neg, a, t0>  <=>  <-, 0, a, tmp>
         retItem = vi;
     }
 

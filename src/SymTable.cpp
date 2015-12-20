@@ -61,6 +61,11 @@ int BaseItem::getBaseOffset()
     return this->baseOffset;
 }
 
+int BaseItem::getOffset()
+{
+    return this->offset;
+}
+
 void BaseItem::setName(string name)
 {
     this->name = name;
@@ -84,6 +89,11 @@ void BaseItem::setLevel(int level)
 void BaseItem::setBaseOffset(int baseOffset)
 {
     this->baseOffset = baseOffset;
+}
+
+void BaseItem::setOffset(int offset)
+{
+    this->offset = offset;
 }
 
 /*
@@ -117,19 +127,9 @@ bool VarItem::getPassByAddr()
     return this->passByAddr;
 }
 
-int VarItem::getOffset()
-{
-    return this->offset;
-}
-
 void VarItem::setPassByAddr(bool passByAddr)
 {
     this->passByAddr = passByAddr;
-}
-
-void VarItem::setOffset(int offset)
-{
-    this->offset = offset;
 }
 
 /*
@@ -145,19 +145,9 @@ int ArrayItem::getLength()
     return this->length;
 }
 
-int ArrayItem::getOffset()
-{
-    return this->offset;
-}
-
 void ArrayItem::setLength(int length)
 {
     this->length = length;
-}
-
-void ArrayItem::setOffset(int offset)
-{
-    this->offset = offset;
 }
 
 /*
@@ -166,11 +156,6 @@ void ArrayItem::setOffset(int offset)
 int Node::getRet()
 {
     return this->ret;
-}
-
-int Node::getOffset()
-{
-    return this->offset;
 }
 
 string Node::getHeader()
@@ -191,11 +176,6 @@ Node* Node::getParent()
 void Node::setRet(int ret)
 {
     this->ret = ret;
-}
-
-void Node::setOffset(int offset)
-{
-    this->offset = offset;
 }
 
 void Node::setHeader(string header)

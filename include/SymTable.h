@@ -27,6 +27,7 @@ private:
     bool isChar;
     int level;                      ///节点所在的层级
     int baseOffset;                 ///当前已经偏移的大小，用于方便的填写各变量的offset
+    int offset;
 
 public:
     BaseItem(){}
@@ -37,12 +38,14 @@ public:
     bool getIsChar();
     int getLevel();
     int getBaseOffset();
+    int getOffset();
 
     void setName(string name);
     void setType(ItemType type);
     void setIsChar(bool isChar);
     void setLevel(int level);
     void setBaseOffset(int baseOffset);
+    void setOffset(int offset);
 };
 
 class ConstItem : public BaseItem    //常量
@@ -63,34 +66,28 @@ class VarItem : public BaseItem    //变量
 {
 private:
     bool passByAddr;
-    int offset;                     ///变量相对于本层基地址的偏移.不该把VarItem和ArrayItem分成两个类的
 
 public:
     VarItem(){}
     VarItem(string name, ItemType type, bool isChar, bool passByAddr);
 
     bool getPassByAddr();
-    int getOffset();
 
     void setPassByAddr(bool passByAddr);
-    void setOffset(int offset);
 };
 
 class ArrayItem : public BaseItem       //数组：array[...] of (integer | char)
 {
 private:
     int length;
-    int offset;                     ///变量相对于本层基地址的偏移
 
 public:
     ArrayItem(){}
     ArrayItem(string name, ItemType type, bool isChar, int length);    //type为integer | char,决定数组类型
 
     int getLength();
-    int getOffset();
 
     void setLength(int length);
-    void setOffset(int offset);
 };
 
 class Node : public BaseItem        //函数或过程，作为节点
@@ -99,20 +96,17 @@ public:
     vector<VarItem *> *paraSection;
 private:
     int ret;    ///貌似没用，返回值是放在栈上记录函数的地方的
-    int offset;
     string header;                      ///name的头前缀，合成新的name，从而允许同名不同域的情况
     map<string, BaseItem*> curItems;  //存储当前程序段的属性变量
     Node *parent;
 
 public:
     int getRet();
-    int getOffset();
     string getHeader();
     map<string, BaseItem*> getCurItems();    //ItemSeg
     Node* getParent();
 
     void setRet(int ret);
-    void setOffset(int offset);
     void setHeader(string header);
     void addCurItems(string itemName, BaseItem* item);
     void setParent(Node *parent);

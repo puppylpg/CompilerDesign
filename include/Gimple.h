@@ -13,7 +13,7 @@ enum MIDOp{                     //MIDOp是一种类型，代表X元式的操作�
     MID_DIV,
     MID_ASSIGN,
 //    MID_ASSIGN_I,
-    MID_NEG,
+//    MID_NEG,
     MID_LW,
     MID_SW,
     MID_CALL,

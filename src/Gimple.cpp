@@ -9,7 +9,7 @@ const char *opMsg[] = {                 //op对应的“可视”形式
     "/",                //div
     "ASSIGN",           //mov
 //    "ASSIGN_I",         //mov
-    "NEG",              //<neg, result, tmp> : neg result; move tmp, result
+//    "NEG",              //<neg, result, tmp> : neg result; move tmp, result
     "LW",               //result:=op1[op2] <lw, op1, op2, result> mov result, [op1+op2*SIZE]
     "SW",               //op1[op2]:=result <sw, op1, op2, result> mov [op1+op2*SIZE], result
     "CALL",             //call || <call, haha, tmp> : call, haha; move tmp, exa

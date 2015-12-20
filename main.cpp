@@ -9,6 +9,7 @@
 #include "Syntax.h"
 #include "Error.h"
 #include "SymTable.h"
+#include "Assembly.h"
 
 
 using namespace std;
@@ -22,6 +23,8 @@ int main()
     getToken();
 
     proced();
+
+    parseGimList();
 
     return 0;
 }

@@ -12,4 +12,6 @@ enum x86_REGISTER{
     REG_EBP
 };
 
+extern void parseGimList();
+
 #endif // ASSEMBLY_H_INCLUDED
