@@ -130,7 +130,7 @@ Gimple* findGimple(BaseItem *item)
 {
     vector<Gimple*>::reverse_iterator rit;
     for(rit = gimList.rbegin(); rit != gimList.rend(); rit++){
-        if((*rit)->getResult()->getName() == item->getName()){
+        if((*rit)->getResult() != NULL && (*rit)->getResult()->getName() == item->getName()){
             return *rit;
         }
     }
@@ -160,8 +160,6 @@ void subproced(Node *node)            //分程序
 {
     if(token == "const"){   //常量说明部分
 //        getToken();           //进入常数说明部分还会再次判断是否是const，所以这里先不读取下一个token
-                                //否则，相当于重复判断了关键词“const”(特点：这是本身可有可无的语句，所以判断起来比较特别)
-                                //更确切的说，主要原因是因为我没有对文法进行显式的合并（提取first集公因式）
         constDeclare();
     }
     if(token == "var"){     //变量说明部分
@@ -532,14 +530,14 @@ Node* procedureHead()    //过程首部
 
 void parameterTable(vector<VarItem *> *&p)   //形式参数表
 {
-    vector<VarItem *> v;
-    p = &v;                 ///p为vector<VarItem *>型指针，就是item的paraSection
+    p = new vector<VarItem *>;
+//    p = &v;                 ///p为vector<VarItem *>型指针，就是item的paraSection
     if(token == "("){
         getToken();
-        parameterSegment(v);    ///以引用形式接收
+        parameterSegment(*p);    ///以引用形式接收
         while(token == ";"){
             getToken();
-            parameterSegment(v);
+            parameterSegment(*p);
         }
         if(token != ")"){
             error(Right_parenthese); //error:形式参数表缺少')'
@@ -566,6 +564,7 @@ void parameterSegment(vector<VarItem *> &v) //形式参数段
     }
     itemNames.push_back(identifier());
     while(token == ","){
+        getToken();             ///竟然忘了写getToken()了！！！
         itemNames.push_back(identifier());
     }
     if(token != ":"){
@@ -665,10 +664,6 @@ Node* functionHead()     //函数首部
 
         if(token == "("){
             parameterTable(item->paraSection);
-            ///TODO
-            int lll = item->paraSection->size();
-            int a = 1;
-            ///TODO
         }
         if(token != ":"){
             error(Colon); //error:函数首部缺少':'
@@ -1019,22 +1014,7 @@ void realParameterTable(Node *func)   //实在参数表
     vector<BaseItem *> result;              ///
 
     vector<VarItem *> *p = func->paraSection;
-//
-//
-//
-//    vector<VarItem *> v = *p;
-//    int lll = v.size();
-//    vector<VarItem *>::iterator it;
-//    for(it = v.begin(); it != v.end(); it++){
-//        cout << *it << endl;
-//    }
-//
-//
-////
-///TODO
-    int lll = (*(func->paraSection)).size();
-    int ttt = func->paraSection->size();
-///TODO
+
     int totalPara = (*p).size();        ///获取形参总个数
 
     if(token == "("){
@@ -1075,7 +1055,7 @@ void realParameterTable(Node *func)   //实在参数表
                     Gimple *gim = findGimple(result[i]);
                     ///如果是数组项，且传址，则进行特殊标记，因为到时候取的不是tmp的地址，而是数组的地址
                     ///所以当发现MID_LW命令时，如果其后的tmp名字带有_array，则不再是赋值，而是赋地址
-                    if(gim->getOp() == MID_LW){
+                    if(gim != NULL && gim->getOp() == MID_LW){
                         string tmpName = gim->getResult()->getName();
                         gim->getResult()->setName(tmpName + "_array");
                     }
@@ -1391,7 +1371,7 @@ void forStatement() //for循环语句
             op = MID_ASSIGN;
             getToken();
             t1 = expression();
-            enterGimList(op, t1, NULL, item);            ///i := t1 --> <:=, t1, i>
+//            enterGimList(op, t1, NULL, item);            ///i := t1 --> <:=, t1, i>
         }
         if(symbol != "DOWNTO" && symbol != "TO"){
             error(Downto_to); //error:for语句缺少downto/to
@@ -1400,6 +1380,15 @@ void forStatement() //for循环语句
             selfOp = (symbol == "DOWNTO") ? MID_SUB : MID_ADD;
             getToken();
             t2 = expression();
+            endLabel = genLabel("end");
+            if(selfOp == MID_ADD){              ///生成跳转，如果起始变量大于结束变量，就跳走了
+                enterGimList(MID_GT, t1, t2, endLabel);
+            }
+            else{                               ///生成跳转，如果起始变量小于结束变量，就跳走了
+                enterGimList(MID_LT, t1, t2, endLabel);
+            }
+            ///pascal语法，一切正常，才赋值
+            enterGimList(MID_ASSIGN, t1, NULL, item);
         }
         if(symbol != "DO"){
             error(Do); //error:for语句缺少do
@@ -1415,11 +1404,12 @@ void forStatement() //for循环语句
 
             enterGimList(selfOp, item, cItem, item);    ///i := i + 1 --> <+/-, i, "1", i>
             if(selfOp == MID_ADD){
-                enterGimList(MID_GE, item, t2, loopLabel);     /// i>=t2不成立，则跳转到loop  < >=, i, t2, loop>
+                enterGimList(MID_GT, item, t2, loopLabel);     /// i>=t2不成立，则跳转到loop  < >=, i, t2, loop>
             }
             else{
-                enterGimList(MID_LE, item, t2, loopLabel);     /// i<=t2不成立，则跳转到loop  < <=, i, t2, loop>
+                enterGimList(MID_LT, item, t2, loopLabel);     /// i<=t2不成立，则跳转到loop  < <=, i, t2, loop>
             }
+            enterGimList(MID_LABEL, endLabel, NULL, NULL); ///
         }
     }
 

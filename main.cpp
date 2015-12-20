@@ -15,6 +15,8 @@ using namespace std;
 
 int main()
 {
+    cin >> location;
+    infile.open(location.c_str());
     createTables();
     getch();
     getToken();

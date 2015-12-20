@@ -61,6 +61,7 @@ public:
 extern vector<Gimple*> gimList;
 extern const char *opMsg[];
 
-void enterGimList(MIDOp op, BaseItem *op1, BaseItem *op2, BaseItem *result);
+extern void enterGimList(MIDOp op, BaseItem *op1, BaseItem *op2, BaseItem *result);
+//extern void printGimpleAll();
 
 #endif // GIMPLE_H_INCLUDED

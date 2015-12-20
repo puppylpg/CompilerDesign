@@ -49,6 +49,16 @@ void printGimple(Gimple *gimple)
     cout << endl;
 }
 
+///每生成一条就立即输出会导致一个问题：
+///当四元式被重新更新过之后，之前输出的已经不是最新的了，
+///不过这并不影响后来处理四元式生成汇编，仅仅影响在屏幕上的输出
+//void printGimpleAll()
+//{
+//    int length = gimList.size();
+//    for(int i = 0; i < length; i++)
+//        printGimple(gimList[i]);
+//}
+
 void enterGimList(MIDOp op, BaseItem *op1, BaseItem *op2, BaseItem *result)
 {
     Gimple *gimple = new Gimple(op, op1, op2, result);
