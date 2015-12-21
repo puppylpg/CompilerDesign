@@ -9,7 +9,7 @@ Node* initSymTable()
 {
     Node *tmp = new Node();
     tmp->setParent(NULL);         //根节点的标志
-    tmp->setName("__MAIN__");       ///相对于正常的函数名来说要不合法
+    tmp->setName("_start");       ///相对于正常的函数名来说要不合法
     tmp->setBaseOffset(0);          ///为了变量（属于下一层）的偏移
     tmp->setLevel(0);               ///第零层
     return tmp;

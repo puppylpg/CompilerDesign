@@ -1,6 +1,8 @@
 #ifndef ASSEMBLY_H_INCLUDED
 #define ASSEMBLY_H_INCLUDED
 
+#include <fstream>
+
 enum x86_REGISTER{
     REG_EAX,
     REG_EBX,
@@ -13,5 +15,9 @@ enum x86_REGISTER{
 };
 
 extern void parseGimList();
+
+///TODO
+extern std::ofstream outfile;
+///TODO
 
 #endif // ASSEMBLY_H_INCLUDED

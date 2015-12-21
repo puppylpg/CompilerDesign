@@ -146,7 +146,7 @@ void proced()               //程序
 {
     root = initSymTable();   ///
     curNode = root;
-    enterGimList(MID_JMP, root, NULL, NULL);
+//    enterGimList(MID_JMP, root, NULL, NULL);
 
     subproced(root);            //分程序
     if(token != "."){
@@ -257,7 +257,7 @@ string identifier()       //标识符定义
 int constant(bool &isChar)         //常量
 {
     int num;
-    int flag;
+    int flag = 1;                   ///flag没有初始化！！！！！导致后面num算错！坑死了
 
     if(token == "'"){         //是字符(字母或数字)
         num = isCharacter();    ///

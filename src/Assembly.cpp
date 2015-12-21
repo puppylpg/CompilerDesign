@@ -30,8 +30,6 @@ using namespace std;
 ifstream prefix("IO_intel.asm");
 ofstream outfile("Assembly.txt");
 
-//string eax, ebx, ecx, edx, esi, edi, esp, ebp;
-
 const char *reg[] = {
     "eax",
     "ebx",
@@ -48,11 +46,16 @@ x86_REGISTER reg1 = REG_ECX;        ///
 x86_REGISTER reg2 = REG_EDX;        ///如果是数组，需要存下标，固定装入reg2
 x86_REGISTER reg3 = REG_ESI;        ///如果使用静态链，需要reg3临时存一下"ebp+偏移"所指向的基地址
 
-void init()         ///TODO
+void init()
 {
     char s[200];
+    outfile << "extern __isoc99_scanf" << endl << "extern puts" << endl
+            << "extern printf" << endl << "extern exit" << endl;
+    cout << "extern __isoc99_scanf" << endl << "extern puts" << endl
+            << "extern printf" << endl << "extern exit" << endl;
     while(prefix.getline(s, 190)){
         outfile << s << endl;
+        cout << s << endl;
     }
 }
 
@@ -63,18 +66,24 @@ void genAssembly(initializer_list<string> args)
         latter = it + 1;
         if(latter == args.end()){
             outfile << *it << endl;
+            cout << *it << endl;
         }
         else if(it == args.begin()){
             outfile << *it << '\t';
+            cout << *it << '\t';
         }
         else{
             outfile << *it << ", ";
+            cout << *it << ", ";
         }
     }
 }
 
 string findAddr(BaseItem *item)
 {
+    if(item->getType() == ItemType_CONST){
+        cout << "刘海博滚粗！常量在运行栈上找你妹啊！" << endl;
+    }
     int offset = item->getOffset() + 1 * SIZE;    //向上有ret address，向下有prev ebp，所以加一个SIZE
     int objLevel = item->getLevel() - 1;
     int curLevel = curNode->getLevel();
@@ -100,11 +109,13 @@ string findAddr(BaseItem *item)
         ss << "[ebp - " << SIZE << "]";
         genAssembly({MOV, reg[reg3], ss.str()});  ///mov reg3, [ebp - 4]
         while(offLevel-- > 1){
+            ss.str(""); //清空
             ss << "[" << reg[reg3] << " - " << SIZE << "]";
             genAssembly({MOV, reg[reg3], ss.str()});  ///mov reg3, [reg3 - 4]
         }
         if(item->getType() != ItemType_ARRAY){
 //            addr = "[" + reg[reg3] + "-" + offset + "]";
+            ss.str("");
             ss << "[" << reg[reg3] << " - " << offset << "]";
             addr = ss.str();
         }
@@ -154,9 +165,11 @@ void pushSL(Node *node)
         int curLevel = curNode->getLevel();
         int objLevel = node->getLevel() - 1;
         int offLevel = curLevel - objLevel;
+        ss.str("");
         ss << "[ebp - " << SIZE << "]";
         genAssembly({MOV, reg[reg3], ss.str()});
         while(offLevel-- > 1){
+            ss.str("");
             ss << "[" << reg[reg3] << " - " << SIZE << "]";
             genAssembly({MOV, reg[reg3], ss.str()});
         }
@@ -210,6 +223,7 @@ string getConstant(BaseItem *item)
 /*
 Enter creates a stack frame, and leave destroys a stack frame.
 
+enter还要有操作数。。。
 ; enter
 push ebp
 mov ebp, esp
@@ -238,8 +252,17 @@ void flabel(Gimple *gim)
 {
     BaseItem *item = gim->getOp1();
     Node *func_proc = (Node *)item;
+
+    /*
+    SECTION .text
+    GLOBAL _start
+    */
+    genAssembly({"SECTION .text"});
+    genAssembly({"GLOBAL", func_proc->getHeader() + func_proc->getName()});
     genAssembly({func_proc->getHeader() + func_proc->getName(), ":"});    //输出带前缀的全名，防重名
-    genAssembly({ENTER});               ///create a stack frame
+
+    genAssembly({PUSH, "ebp"});               ///create a stack frame
+    genAssembly({MOV, "ebp", "esp"});
 
     ///由调用者生成静态链！！！
     genAssembly({SUB, "esp", "4"});    ///esp-4，因为这儿已经填好静态链了
@@ -292,7 +315,31 @@ void writeStr(Gimple *gim)
     BaseItem *str = gim->getOp1();
     ///push str（这样的话函数内部就可以用到str了）
     string obj = str->getName();           ///我当时把string放到Baseitem*型量的name里了
-    genAssembly({PUSH, obj});
+
+
+    /*  要生成这样！！！
+SECTION .data
+_LC2:
+        db      'this is the ch',10,''
+        SECTION .text
+push	_LC2
+call	printStr
+    */
+    stringstream ss;
+    static int i = 1;
+
+    genAssembly({"SECTION .data"});
+    ss << "_LIU" << i++;
+    string label = ss.str();
+    genAssembly({label, ":"});
+    ss.str("");
+//    ss << "'" << obj << "'" << ",10,0";
+    ss << "'" << obj << "'" << ",0";
+    genAssembly({"db", ss.str()});
+    genAssembly({"SECTION .text"});
+    ss.str("");
+    ss << "dword " << label;
+    genAssembly({PUSH, ss.str()});
     ///调用函数
     genAssembly({CALL, "printStr"});
     ///回收prev ebp和参数str
@@ -304,8 +351,18 @@ void writeInt(Gimple *gim)
 {
     BaseItem *integer = gim->getOp1();
     ///push str（这样的话函数内部就可以用到str了）
-    string obj = getConstant(integer);
-    genAssembly({PUSH, obj});
+
+    string obj;
+    if(integer->getType() == ItemType_CONST){       ///是常量，int
+        obj = getConstant(integer);
+        genAssembly({PUSH, obj});
+    }
+    else{                                           ///是变量，int
+        obj = findAddr(integer);
+        stringstream ss;
+        ss << "dword " << obj;
+        genAssembly({PUSH, ss.str()});
+    }
     ///调用函数
     genAssembly({CALL, "printInt"});
     ///回收prev ebp和参数str
@@ -317,8 +374,17 @@ void writeChar(Gimple *gim)
 {
     BaseItem *character = gim->getOp1();
     ///push str（这样的话函数内部就可以用到str了）
-    string obj = getConstant(character);
-    genAssembly({PUSH, obj});
+    string obj;
+    if(character->getType() == ItemType_CONST){
+        getConstant(character);
+        genAssembly({PUSH, obj});
+    }
+    else{
+        obj = findAddr(character);
+        stringstream ss;
+        ss << "dword " << obj;
+        genAssembly({PUSH, ss.str()});
+    }
     ///调用函数
     genAssembly({CALL, "printChar"});
     ///回收prev ebp和参数str
@@ -432,13 +498,15 @@ void add_sub_mult(Gimple *gim)
     else if(op1->getType() == ItemType_CONST && op2->getType() != ItemType_CONST){
         memToReg(MOV, reg2, op2);
         string num = getConstant(op1);
-        genAssembly({op, reg[reg2], num});
+        genAssembly({MOV, reg[reg1], num});         ///数字不能直接运算，必须放到寄存器里
+        genAssembly({op, reg[reg2], reg[reg1]});
         regToMem(MOV, result, reg2);
     }
     else if(op1->getType() != ItemType_CONST && op2->getType() == ItemType_CONST){
         memToReg(MOV, reg1, op1);
         string num = getConstant(op2);
-        genAssembly({op, reg[reg1], num});
+        genAssembly({MOV, reg[reg2], num});
+        genAssembly({op, reg[reg1], reg[reg2]});
         regToMem(MOV, result, reg1);
     }
     else{
@@ -460,7 +528,7 @@ void div(Gimple *gim)
     BaseItem *op1 = gim->getOp1();
     BaseItem *op2 = gim->getOp2();
     BaseItem *result = gim->getResult();
-    string addr_op2 = findAddr(op2);
+    string addr_op2;
     string addr_result = findAddr(result);
 
     if(op1->getType() != ItemType_CONST){
@@ -471,7 +539,19 @@ void div(Gimple *gim)
         genAssembly({MOV, reg[REG_EAX], num});
     }
     genAssembly({MOV, reg[REG_EDX], "0"});
-    genAssembly({"idiv", addr_op2});
+
+    if(op2->getType() != ItemType_CONST){
+        addr_op2 = findAddr(op2);
+        stringstream ss;
+        ss << "dword " << addr_op2;
+        genAssembly({IDIV, ss.str()});
+    }
+    else{
+        addr_op2 = getConstant(op2);
+        genAssembly({MOV, "ecx", addr_op2});    ///常量不能直接作为除数，必须是<reg>或者<mem>
+        genAssembly({IDIV, "ecx"});
+    }
+
     genAssembly({MOV, addr_result, reg[REG_EAX]});
 }
 
@@ -527,7 +607,9 @@ void pushPara(Gimple *gim)
     BaseItem *item = gim->getOp1();
     if(item->getType() != ItemType_CONST){
         string addr = findAddr(item);
-        genAssembly({PUSH, addr});
+        stringstream ss;
+        ss << "dword " << addr;
+        genAssembly({PUSH, ss.str()});
     }
     else{
         string num = getConstant(item);
@@ -551,7 +633,7 @@ void pushParaAddr(Gimple *gim)
 }
 
 //<CALL, hehe, (result)> result <= hehe
-void call(Gimple *gim)  //带参数函数
+void call(Gimple *gim)
 {
     BaseItem *item = gim->getOp1();
     Node *node = (Node *)item;
@@ -564,10 +646,12 @@ void call(Gimple *gim)  //带参数函数
     pushSL(node);
     genAssembly({CALL, node->getHeader() + node->getName()});
 
-    int paraNum = node->paraSection->size();
-    stringstream ss;
-    ss << paraNum * SIZE;
-    genAssembly({ADD, "esp", ss.str()});  ///回退参数所占空间
+    if(node->paraSection != NULL){
+        int paraNum = node->paraSection->size();
+        stringstream ss;
+        ss << paraNum * SIZE;
+        genAssembly({ADD, "esp", ss.str()});  ///回退参数所占空间
+    }
 
     if(result != NULL){                         ///如果有返回值，赋值
         memToReg(MOV, reg0, node);
@@ -617,10 +701,14 @@ void parseOrder(Gimple *gimple)
 
 void parseGimList()
 {
-    init();
     int length = gimList.size();
     for(int i = 0; i < length; i++){
+        if(i == 0){
+            init();
+        }
         parseOrder(gimList[i]);
     }
+    genAssembly({PUSH, "0"});           ///结束的时候调用exit，否则会崩溃
+    genAssembly({CALL, "exit"});
 }
 

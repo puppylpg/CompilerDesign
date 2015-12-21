@@ -1,53 +1,45 @@
         ;FILE "IO.c"
-        SECTION         .rodata
-.LC0: 
-        db      '%d'
+        SECTION         .data
+_LC0: 
+        db      '%d',0
         SECTION .text
         GLOBAL  readInt
-        GLOBAL readInt:function
 readInt: 
-.LFB0: 
         push    ebp
         mov     ebp,esp
         sub     esp,24
         sub     esp,8
         lea     eax, [ebp-12]
         push    eax
-        push    dword .LC0
+        push    dword _LC0
         call    __isoc99_scanf
         add     esp,16
         mov     eax, [ebp-12]
         leave
         ret
-.LFE0: 
-        GLOBAL  readInt:function (.-readInt)
-        SECTION         .rodata
-.LC1: 
-        db      '%c'
+
+        SECTION         .data
+_LC1: 
+        db      '%c',0
         SECTION .text
         GLOBAL  readChar
-        GLOBAL readChar:function
-readChar: 
-.LFB1: 
+readChar:  
         push    ebp
         mov     ebp,esp
         sub     esp,24
         sub     esp,8
         lea     eax, [ebp-9]
         push    eax
-        push    dword .LC1
+        push    dword _LC1
         call    __isoc99_scanf
         add     esp,16
         movzx   eax,byte [ebp+-9]
         movsx   eax,al
         leave
         ret
-.LFE1: 
-        GLOBAL  readChar:function (.-readChar)
+
         GLOBAL  printStr
-        GLOBAL printStr:function
 printStr: 
-.LFB2: 
         push    ebp
         mov     ebp,esp
         sub     esp,8
@@ -58,37 +50,31 @@ printStr:
         nop
         leave
         ret
-.LFE2: 
-        GLOBAL  printStr:function (.-printStr)
-        SECTION         .rodata
-.LC2: 
-        db      '%d',10,''
+
+        SECTION         .data
+_LC2: 
+        db      '%d',10,0
         SECTION .text
         GLOBAL  printInt
-        GLOBAL printInt:function
 printInt: 
-.LFB3: 
         push    ebp
         mov     ebp,esp
         sub     esp,8
         sub     esp,8
         push    dword [ebp+8]
-        push    dword .LC2
+        push    dword _LC2
         call    printf
         add     esp,16
         nop
         leave
         ret
-.LFE3: 
-        GLOBAL  printInt:function (.-printInt)
-        SECTION         .rodata
-.LC3: 
-        db      '%c',10,''
+
+        SECTION         .data
+_LC3: 
+        db      '%c',10,0
         SECTION .text
         GLOBAL  printChar
-        GLOBAL printChar:function
-printChar: 
-.LFB4: 
+printChar:  
         push    ebp
         mov     ebp,esp
         sub     esp,24
@@ -97,13 +83,10 @@ printChar:
         movsx   eax,byte [ebp+-12]
         sub     esp,8
         push    eax
-        push    dword .LC3
+        push    dword _LC3
         call    printf
         add     esp,16
         nop
         leave
         ret
-.LFE4: 
-        GLOBAL  printChar:function (.-printChar)
-        ;IDENT "GCC: (GNU) 5.3.0"
 

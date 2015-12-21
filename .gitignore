@@ -9,6 +9,10 @@ bin
 *.cscope_file_list
 *.swp
 
+code
+code.o
+4roundlion.txt
+Assembly.txt
 
 # Compiled Object files
 *.slo

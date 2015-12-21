@@ -1,6 +1,9 @@
 #include "Gimple.h"
 #include <cstdio>
 #include <iostream>
+#include <fstream>
+
+ofstream midfile("4roundlion.txt");
 
 const char *opMsg[] = {                 //op对应的“可视”形式
     "+",                //add    c = a + b : <+, a, b, c> : add a, b; move c, a
@@ -34,20 +37,20 @@ const char *opMsg[] = {                 //op对应的“可视”形式
 
 vector<Gimple*> gimList;                //存放四元式对象的列表
 
-void printGimple(Gimple *gimple)
-{
-    cout << opMsg[gimple->getOp()];
-    if(gimple->getOp1() != NULL){
-        cout << ",\t" << gimple->getOp1()->getName();
-    }
-    if(gimple->getOp2() != NULL){
-        cout << ",\t" << gimple->getOp2()->getName();
-    }
-    if(gimple->getResult() != NULL){
-        cout << ",\t" << gimple->getResult()->getName();
-    }
-    cout << endl;
-}
+//void printGimple(Gimple *gimple)
+//{
+//    cout << opMsg[gimple->getOp()];
+//    if(gimple->getOp1() != NULL){
+//        cout << ",\t" << gimple->getOp1()->getName();
+//    }
+//    if(gimple->getOp2() != NULL){
+//        cout << ",\t" << gimple->getOp2()->getName();
+//    }
+//    if(gimple->getResult() != NULL){
+//        cout << ",\t" << gimple->getResult()->getName();
+//    }
+//    cout << endl;
+//}
 
 ///每生成一条就立即输出会导致一个问题：
 ///当四元式被重新更新过之后，之前输出的已经不是最新的了，
@@ -58,6 +61,23 @@ void printGimple(Gimple *gimple)
 //    for(int i = 0; i < length; i++)
 //        printGimple(gimList[i]);
 //}
+
+///TODO: 四元式往tmpfile输出一份
+void printGimple(Gimple *gimple)
+{
+    midfile << opMsg[gimple->getOp()];
+    if(gimple->getOp1() != NULL){
+        midfile << ",\t" << gimple->getOp1()->getName();
+    }
+    if(gimple->getOp2() != NULL){
+        midfile << ",\t" << gimple->getOp2()->getName();
+    }
+    if(gimple->getResult() != NULL){
+        midfile << ",\t" << gimple->getResult()->getName();
+    }
+    midfile << endl;
+}
+///TODO
 
 void enterGimList(MIDOp op, BaseItem *op1, BaseItem *op2, BaseItem *result)
 {
