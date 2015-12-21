@@ -95,39 +95,150 @@ printChar:
         ret
 
 SECTION .text
+GLOBAL	_startgcd
+_startgcd	:
+push	ebp
+mov	ebp, esp
+sub	esp, 4
+sub	esp, 16
+mov	ecx, [ebp --8]
+mov	edx, [ebp --12]
+cmp	ecx, edx
+jne	_fLabel0
+mov	ecx, [ebp --8]
+mov	esi, [ebp - 4]
+mov	[esi - 20], ecx
+jmp	_tLabel1
+_fLabel0	:
+_tLabel1	:
+mov	ecx, [ebp --8]
+mov	edx, [ebp --12]
+cmp	ecx, edx
+jle	_fLabel2
+mov	edx, [ebp --12]
+mov	ecx, [ebp --8]
+sub	ecx, edx
+mov	[ebp -8], ecx
+push	dword [ebp --12]
+push	dword [ebp -8]
+mov	esi, [ebp - 4]
+mov	[esp - 3 * 4], esi
+call	_startgcd
+add	esp, 8
+mov	esi, [ebp - 4]
+mov	ebx, [esi - 20]
+mov	[ebp -12], ebx
+mov	ecx, [ebp -12]
+mov	esi, [ebp - 4]
+mov	[esi - 20], ecx
+jmp	_tLabel3
+_fLabel2	:
+_tLabel3	:
+mov	ecx, [ebp --8]
+mov	edx, [ebp --12]
+cmp	ecx, edx
+jge	_fLabel4
+mov	edx, [ebp --8]
+mov	ecx, [ebp --12]
+sub	ecx, edx
+mov	[ebp -16], ecx
+push	dword [ebp -16]
+push	dword [ebp --8]
+mov	esi, [ebp - 4]
+mov	[esp - 3 * 4], esi
+call	_startgcd
+add	esp, 8
+mov	esi, [ebp - 4]
+mov	ebx, [esi - 20]
+mov	[ebp -20], ebx
+mov	ecx, [ebp -20]
+mov	esi, [ebp - 4]
+mov	[esi - 20], ecx
+jmp	_tLabel5
+_fLabel4	:
+_tLabel5	:
+leave
+ret
+SECTION .text
 GLOBAL	_start
 _start	:
 push	ebp
 mov	ebp, esp
 sub	esp, 4
-sub	esp, 24
+sub	esp, 36
+call	readInt
+mov	[ebp -8], eax
+call	readInt
+mov	[ebp -12], eax
+SECTION .data
+_LIU1	:
+db	'Now we want to get the greatest common divisor of the two input number: ',0
+SECTION .text
+push	dword _LIU1
+call	printStr
+add	esp, 4
+push	dword [ebp -12]
+push	dword [ebp -8]
+mov	[esp - 3 * 4], ebp
+call	_startgcd
+add	esp, 8
+mov	ebx, [ebp -20]
+mov	[ebp -24], ebx
+push	dword [ebp -24]
+call	printInt
+add	esp, 4
+SECTION .data
+_LIU2	:
+db	'Now please input three num,we get their GCD:',0
+SECTION .text
+push	dword _LIU2
+call	printStr
+add	esp, 4
 call	readInt
 mov	[ebp -8], eax
 call	readInt
 mov	[ebp -12], eax
 call	readInt
 mov	[ebp -16], eax
+push	dword [ebp -16]
+push	dword [ebp -12]
+mov	[esp - 3 * 4], ebp
+call	_startgcd
+add	esp, 8
+mov	ebx, [ebp -20]
+mov	[ebp -28], ebx
+push	dword [ebp -28]
+push	dword [ebp -8]
+mov	[esp - 3 * 4], ebp
+call	_startgcd
+add	esp, 8
+mov	ebx, [ebp -20]
+mov	[ebp -32], ebx
+push	dword [ebp -32]
+call	printInt
+add	esp, 4
 SECTION .data
-_LIU1	:
-db	'The area of the trapezoid: ',0
+_LIU3	:
+db	'',0
 SECTION .text
-push	dword _LIU1
+push	dword _LIU3
 call	printStr
 add	esp, 4
-mov	edx, [ebp -12]
-mov	ecx, [ebp -8]
-add	ecx, edx
-mov	[ebp -20], ecx
-mov	edx, [ebp -16]
-mov	ecx, [ebp -20]
-imul	ecx, edx
-mov	[ebp -24], ecx
-mov	eax, [ebp -24]
-mov	edx, 0
-mov	ecx, 2
-idiv	ecx
-mov	[ebp -28], eax
-push	dword [ebp -28]
+push	dword [ebp -12]
+push	dword [ebp -8]
+mov	[esp - 3 * 4], ebp
+call	_startgcd
+add	esp, 8
+mov	ebx, [ebp -20]
+mov	[ebp -36], ebx
+push	dword [ebp -16]
+push	dword [ebp -36]
+mov	[esp - 3 * 4], ebp
+call	_startgcd
+add	esp, 8
+mov	ebx, [ebp -20]
+mov	[ebp -40], ebx
+push	dword [ebp -40]
 call	printInt
 add	esp, 4
 push	0

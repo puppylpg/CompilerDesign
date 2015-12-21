@@ -13,6 +13,7 @@ code
 code.o
 4roundlion.txt
 Assembly.txt
+Assembly.asm
 
 # Compiled Object files
 *.slo

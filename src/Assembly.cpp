@@ -28,7 +28,7 @@
 using namespace std;
 
 ifstream prefix("IO_intel.asm");
-ofstream outfile("Assembly.txt");
+ofstream outfile("Assembly.asm");
 
 const char *reg[] = {
     "eax",
