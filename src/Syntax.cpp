@@ -1299,13 +1299,15 @@ void writeStatement()
                         enterGimList(MID_WRITEINT, express, NULL, NULL);
                     }
                 }
-                else{   //空语句
+                /*else{   //空语句
                     ;
                 }
+                */
             }
             else if(token == "+"
                     || token == "-"
-                    || symbol == "IDENTIFIER"){ //是表达式
+                    || symbol == "IDENTIFIER" || token == "("
+                    || (token.size() > 0 && (token.at(0) >= '0' && token.at(0) <= '9'))){ //是表达式
 //                getToken();               这个错误语法分析时没有检查出来
                 express = expression();
                 if(express->getIsChar() == true){           ///写char

@@ -20,6 +20,7 @@
 #define SUB "sub"
 #define IMUL "imul"
 #define IDIV "idiv"
+#define CDQ "cdq"
 #define PUSH "push"
 #define ENTER "enter"
 #define LEAVE "leave"
@@ -96,7 +97,7 @@ string findAddr(BaseItem *item)
     if(item->getType() == ItemType_CONST){
         cout << "刘海博滚粗！常量在运行栈上找你妹啊！" << endl;
     }
-    int offset = item->getOffset() + 1 * SIZE;    //向上有ret address，向下有prev ebp，所以加一个SIZE
+    int offset = item->getOffset() + 2 * SIZE;    //向上有retAddr/null，向下有prev ebp/retValue，所以加个2SIZE
     int objLevel = item->getLevel() - 1;
     int curLevel = curNode->getLevel();
     int offLevel = curLevel - objLevel;
@@ -485,7 +486,6 @@ void lw(Gimple *gim)
     BaseItem *op2 = gim->getOp2();
     BaseItem *result = gim->getResult();
 
-    memToReg(op, reg0, op1);                    ///数组到reg0
     if(op2->getType() != ItemType_CONST){
         memToReg(op, reg2, op2);                ///数组下标到reg2
     }
@@ -493,6 +493,8 @@ void lw(Gimple *gim)
         string num = getConstant(op2);
         genAssembly({MOV, reg[reg2], num});
     }
+    ///先取好下标，再取数组！！！
+    memToReg(op, reg0, op1);                    ///数组到reg0
 
     if(result->getName().find("_array") == string::npos){   ///往临时变量里存的是数组项的值
         regToMem(op, result, reg0);       ///数组项(在reg0中)存入result
@@ -571,7 +573,7 @@ void div(Gimple *gim)
         string num = getConstant(op1);
         genAssembly({MOV, reg[REG_EAX], num});
     }
-    genAssembly({MOV, reg[REG_EDX], "0"});
+    genAssembly({CDQ});
 
     if(op2->getType() != ItemType_CONST){
         addr_op2 = findAddr(op2);
