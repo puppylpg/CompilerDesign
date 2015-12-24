@@ -1,5 +1,6 @@
 #include "SymTable.h"
 #include "Error.h"
+#include "Windows.h"
 
 Node *curNode;                      //当前所在节点（程序或函数）
 Node *formerNode;                         //前一个节点
@@ -9,7 +10,11 @@ Node* initSymTable()
 {
     Node *tmp = new Node();
     tmp->setParent(NULL);         //根节点的标志
+    #ifdef WINDOWS
+    tmp->setName("_main");
+    #else
     tmp->setName("_start");       ///相对于正常的函数名来说要不合法
+    #endif // WINDOWS
     tmp->setBaseOffset(0);          ///为了变量（属于下一层）的偏移
     tmp->setLevel(0);               ///第零层
     return tmp;

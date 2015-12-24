@@ -37,6 +37,8 @@ void error(Error id)
         "Undeclared identifier",
         "Constant can't be assigned",
         "Procedure can't be assigned",
+        "Array can't be assigned, but array item can",
+        "The assignment to function is illegal(Can only assign a value to the function itself rather than other function)",
         "Isn't an array, illegal \"[]\" using",
         "Isn't a procedure but is called like a procedure",
         "Isn't a function but is called like a function",
@@ -48,6 +50,7 @@ void error(Error id)
         "Can't pass the address of a Const"
     };
 
+    numError++;
     fprintf(stderr, "[ERROR] %d:%d -- %s\n",
             line__, pos__,
             errorMsg[id]);

@@ -738,6 +738,12 @@ void statement()    //语句
                 else if(bItem->getType() == ItemType_PROCEDURE){
                     error(Procedure_not_assign); ///过程不能被赋值
                 }
+                else if(bItem->getType() == ItemType_ARRAY){
+                    error(Array_not_assign);    ///数组不能被赋值，但是数组项可以
+                }
+                else if(bItem->getType() == ItemType_FUNCTION && bItem->getName() != curNode->getName()){
+                    error(Assign_to_function_illegal);  ///给函数赋值只可能是作为本函数的返回值这一种情况
+                }
 
                 op = MID_ASSIGN;
                 getToken();

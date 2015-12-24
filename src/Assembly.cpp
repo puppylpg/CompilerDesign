@@ -2,6 +2,7 @@
 #include "Assembly.h"
 #include "Gimple.h"     //vector<Gimple*> gimList;
 #include "SymTable.h"   //root/curNode
+#include "Windows.h"
 #include <initializer_list>
 #include <cstdlib>      //atoi()
 #include <string>
@@ -27,7 +28,11 @@
 
 using namespace std;
 
-ifstream prefix("IO_intel.asm");
+#ifdef WINDOWS
+ifstream prefix("IO_intel_WINDOWS.ams");
+#else
+ifstream prefix("IO_intel_LINUX.asm");
+#endif // WINDOWS
 ofstream outfile("Assembly.asm");
 
 const char *reg[] = {
@@ -49,10 +54,17 @@ x86_REGISTER reg3 = REG_ESI;        ///如果使用静态链，需要reg3临时�
 void init()
 {
     char s[200];
+    #ifdef WINDOWS
+    outfile << "extern _scanf" << endl << "extern _puts" << endl
+            << "extern _printf" << endl << "extern _exit" << endl;
+    cout << "extern _scanf" << endl << "extern _puts" << endl
+            << "extern _printf" << endl << "extern _exit" << endl;
+    #else
     outfile << "extern __isoc99_scanf" << endl << "extern puts" << endl
             << "extern printf" << endl << "extern exit" << endl;
     cout << "extern __isoc99_scanf" << endl << "extern puts" << endl
             << "extern printf" << endl << "extern exit" << endl;
+    #endif // WINDOWS
     while(prefix.getline(s, 190)){
         outfile << s << endl;
         cout << s << endl;
@@ -97,15 +109,18 @@ string findAddr(BaseItem *item)
     string addr;
     if(offLevel == 0){                              ///TODO: ebp - -1 支持吗？
         if(item->getType() != ItemType_ARRAY){
+            ss.str("");
             ss << "[ebp " << "-" << offset << "]";
             addr = ss.str();
         }
         else{
+            ss.str("");
             ss << "[ebp - " << offset << "+" << reg[reg2] << " * " << SIZE << "]";
             addr = ss.str();
         }
     }
     else{
+        ss.str("");
         ss << "[ebp - " << SIZE << "]";
         genAssembly({MOV, reg[reg3], ss.str()});  ///mov reg3, [ebp - 4]
         while(offLevel-- > 1){
@@ -121,6 +136,7 @@ string findAddr(BaseItem *item)
         }
         else{
 //            addr = "[" + reg[reg3] + "-" + offset + "+" + reg[reg2] * SIZE + "]";
+            ss.str("");
             ss << "[" << reg[reg3] << " - " << offset << " + " << reg[reg2] << "*" << SIZE << "]";
             addr = ss.str();
         }
@@ -144,6 +160,11 @@ void constToMem(string op, BaseItem *item, string num)
 {
     string addr = findAddr(item);
     genAssembly({op, addr, num});
+}
+
+void constToReg(string op, x86_REGISTER objReg, string num)
+{
+    genAssembly({op, reg[objReg], num});
 }
 
 void pushSL(Node *node)
@@ -184,16 +205,16 @@ string getConstant(BaseItem *item)
     string obj;
 
     ConstItem *cItem = (ConstItem *)item;
-    if(cItem->getIsChar() == false){
+//    if(cItem->getIsChar() == false){
         int num = cItem->getNum();
         char s[20] = {0};
         sprintf(s, "%d", num);
         obj = string(s);
-    }
-    else{
-        char c = cItem->getNum();
-        obj = string(1, c);
-    }
+//    }
+//    else{
+//        char c = cItem->getNum();
+//        obj = string(1, c);
+//    }
     return obj;
 }
 
@@ -265,7 +286,8 @@ void flabel(Gimple *gim)
     genAssembly({MOV, "ebp", "esp"});
 
     ///由调用者生成静态链！！！
-    genAssembly({SUB, "esp", "4"});    ///esp-4，因为这儿已经填好静态链了
+    genAssembly({SUB, "esp", "8"});    ///esp-4，因为这儿已经填好静态链了
+    ///现在改成了8是为了再腾出一片空间，用来存放函数的返回值
 
     curNode = func_proc;                ///定位curNode指针到当前函数段。curNode指针需要在分析当前函数段时搞建设
 
@@ -376,7 +398,7 @@ void writeChar(Gimple *gim)
     ///push str（这样的话函数内部就可以用到str了）
     string obj;
     if(character->getType() == ItemType_CONST){
-        getConstant(character);
+        obj = getConstant(character);
         genAssembly({PUSH, obj});
     }
     else{
@@ -392,7 +414,7 @@ void writeChar(Gimple *gim)
     ///void 函数，无需将eax赋值给接收者
 }
 
-//<ASSIGN, tmp, result>
+//<ASSIGN, tmp, result>  result := tmp
 void _assign(Gimple *gim)
 {
     string op(MOV);
@@ -400,14 +422,25 @@ void _assign(Gimple *gim)
     BaseItem *result = gim->getResult();
 
     if(tmp->getType() != ItemType_CONST){
-        //先将tmp从内存移到寄存器reg1
-        memToReg(op, reg1, tmp);
-        //再将寄存器reg1的值移到result
-        regToMem(op, result, reg1);
+        memToReg(op, reg1, tmp);            //先将tmp从内存移到寄存器reg1
+        if(result->getType() != ItemType_FUNCTION){ ///如果是作为函数返回值的赋值，需要特判
+            regToMem(op, result, reg1);         //再将寄存器reg1的值移到result
+        }
+        else{
+            genAssembly({MOV, "[ebp + 8]", reg[reg1]})   ///函数返回值需要存入特殊区域
+        }
     }
     else{
         string num = getConstant(tmp);
-        constToMem(op, result, num);
+//        genAssembly({MOV, reg[reg1], num});
+        stringstream ss;
+        ss << "dword " << num;
+        if(result->getType() != ItemType_FUNCTION){
+            constToMem(op, result, ss.str());
+        }
+        else{
+            genAssembly({MOV, "[ebp + 8]", ss.str()});
+        }
     }
 }
 
@@ -575,19 +608,23 @@ void j_condition(Gimple *gim)
         genAssembly({CMP, reg[reg1], reg[reg2]});
     }
     else if(op1->getType() == ItemType_CONST && op2->getType() != ItemType_CONST){
-        memToReg(MOV, reg2, op2);
         string num = getConstant(op1);
-        genAssembly({CMP, num, reg[reg2]});
+        constToReg(MOV, reg1, num);
+        memToReg(MOV, reg2, op2);
+        genAssembly({CMP, reg[reg1], reg[reg2]});
     }
     else if(op1->getType() != ItemType_CONST && op2->getType() == ItemType_CONST){
         memToReg(MOV, reg1, op1);
         string num = getConstant(op2);
-        genAssembly({CMP, reg[reg1], num});
+        constToReg(MOV, reg2, num);
+        genAssembly({CMP, reg[reg1], reg[reg2]});
     }
     else{
         string num1 = getConstant(op1);
+        constToReg(MOV, reg1, num1);
         string num2 = getConstant(op2);
-        genAssembly({CMP, num1, num2});
+        constToReg(MOV, reg2, num2);
+        genAssembly({CMP, reg[reg1], reg[reg2]});
     }
     //jxx falseLabel
     switch(op){
@@ -642,19 +679,23 @@ void call(Gimple *gim)
         result = gim->getResult();
     }
 
-    ///生成静态链！！！
+    ///函数调用之前，在合适位置提前预写好静态链！！！
     pushSL(node);
     genAssembly({CALL, node->getHeader() + node->getName()});
 
+    int paraNum = 0;
     if(node->paraSection != NULL){
-        int paraNum = node->paraSection->size();
+        paraNum = node->paraSection->size();
         stringstream ss;
         ss << paraNum * SIZE;
         genAssembly({ADD, "esp", ss.str()});  ///回退参数所占空间
     }
 
+    int offset = (paraNum + 4) * SIZE;          ///当前esp之后曾经是--参数域，ret addr，ebp，prev ebp，之后才是ret value
     if(result != NULL){                         ///如果有返回值，赋值
-        memToReg(MOV, reg0, node);
+        stringstream ss;
+        ss << offset;
+        genAssembly({MOV, reg[reg0], ss.str()}); ///从之前的返回值区域取出返回值
         regToMem(MOV, result, reg0);
     }
 }
@@ -709,6 +750,10 @@ void parseGimList()
         parseOrder(gimList[i]);
     }
     genAssembly({PUSH, "0"});           ///结束的时候调用exit，否则会崩溃
+    #ifdef WINDOWS
+    genAssembly({CALL, "_exit"});
+    #else
     genAssembly({CALL, "exit"});
+    #endif // WINDOWS
 }
 

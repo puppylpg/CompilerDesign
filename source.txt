@@ -1,13 +1,10 @@
-const init = -1, char0 = '0';
+const init = -1, char0 = '0', charz = 'z';
 var ch : char; top, length, i : integer; s : array [20] of char; stack : array [10] of integer;
 
 procedure getchar;
 begin
 	read(ch);
-	if ch = 1 then
-	begin
-		getchar
-	end	
+	getchar
 end;
 
 procedure gets;
@@ -15,7 +12,7 @@ begin
 	length := length + 1;
 	getchar;
 	s[length] := ch;
-	if ch <> init then
+	if ch <> charz then
 	begin
 		gets
 	end

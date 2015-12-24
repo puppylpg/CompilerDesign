@@ -5,6 +5,7 @@ string charSymb[130], token, symbol;                //charSymb：单个字符对
 
 char ch;                                            //ch：读入的字符
 int line__ = 1, pos__, counter;                         //记录字符所在行列，counter：输出的计数器
+int numError = 0;
 //ifstream infile("source.txt");
 string location;
 ifstream infile;

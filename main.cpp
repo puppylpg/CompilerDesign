@@ -24,7 +24,13 @@ int main()
 
     proced();
 
-    parseGimList();
+    if(!numError){          //没有错误时才会去生成解析四元式生成目标代码
+        parseGimList();
+    }
+    else{
+        cout << "**************" << "Error happens"
+             << "**************" << endl;
+    }
 
     return 0;
 }

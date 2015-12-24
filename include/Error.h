@@ -34,6 +34,8 @@ enum Error{
     Undeclared_item,
     Const_not_assign,
     Procedure_not_assign,
+    Array_not_assign,
+    Assign_to_function_illegal,
     Not_array,
     Not_procedure,
     Not_function,
