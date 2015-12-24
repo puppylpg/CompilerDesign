@@ -1,4 +1,5 @@
 #CompilerDesign
+
 ## 2015.12.22
 测试二没过，修改以下内容：
 ### bug：
@@ -16,3 +17,26 @@ bug3修改步骤：
 ### 功能：
 1. 增加了#ifdef WINDOWS语句，可以很方便的在windows和linux版本之间切换了;
 2. 如果错误发生，将不再解析四元式，生成目标代码，省得在windows上目标代码把报错信息顶没了;
+
+
+## 编译x86的命令
+### Linux:
+```
+nasm -f elf Assembly.asm -o code.o -F dwarf -g
+gcc -o code code.o　-m32
+```
+解释：
+1. 编译。就像将c语言源代码test.c使用gcc命令编译成test.o一样，这一步将x86汇编指令源代码Assembly.asm使用nasm命令编译成目标代码，生成目标文件code.o（机器码），最后的`-F dwarf -g`是为了在用gdb调试机器码的时候能够直接显示汇编码，否则还要每次都将目标码反汇编看看目标码究竟在干什么；
+2. 链接。将目标代码（机器码，code.o）使用gcc（这里实际上要用gcc-multilib，32位gcc，因为我生成的是intel的x86汇编，而不是x64汇编）命令进行链接操作，指定`-m32`参数，链接到库，比如链接上printf等，生成的还是机器码。
+
+注：之前gcc最后用的是`-nostartfiles`参数，是跳过crt0直接进入_strat入口（此时跟节点的函数名要设置成_start），但是运行完会崩溃，所以还是引入入口函数（windows是_main，linux是main），不加-nostartfiles参数，使之通过crt0自己跳转到入口main，因此此时根节点的函数名要设置成main（windows要设置成_main）。
+
+### Windows:
+```
+nasm -f win32 Assembly.asm -o code.o
+/cygdrive/c/TDM-GCC-32/bin/mingw32-gcc.exe -o code.exe code.o
+```
+解释：
+1. 编译；
+2. 链接。使用TDM-GCC-32.exe链接，机房测试环境装的是32位编译器是这个，而不是gcc.exe。
+

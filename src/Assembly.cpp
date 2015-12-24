@@ -427,7 +427,7 @@ void _assign(Gimple *gim)
             regToMem(op, result, reg1);         //再将寄存器reg1的值移到result
         }
         else{
-            genAssembly({MOV, "[ebp + 8]", reg[reg1]})   ///函数返回值需要存入特殊区域
+            genAssembly({MOV, "[ebp + 8]", reg[reg1]});   ///函数返回值需要存入特殊区域
         }
     }
     else{

@@ -486,7 +486,7 @@ Node* procedureHead()    //过程首部
     string itemName;            ///过程
     ItemType type = ItemType_PROCEDURE;  ///header/name/type/curItems/parent
 
-    string header = curNode->getName();
+    string header = curNode->getName() + "_";
     Node *tmpNode = curNode;
 
     while(tmpNode->getParent() != NULL){
@@ -636,7 +636,7 @@ Node* functionHead()     //函数首部
     string itemName;            ///函数
     ItemType type = ItemType_FUNCTION;   ///header/name/type/isChar/curItems/parent/ret
 
-    string header = curNode->getName();
+    string header = curNode->getName() + "_";
     Node *tmpNode = curNode;
 
     while(tmpNode->getParent() != NULL){

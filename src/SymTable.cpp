@@ -13,7 +13,7 @@ Node* initSymTable()
     #ifdef WINDOWS
     tmp->setName("_main");
     #else
-    tmp->setName("_start");       ///相对于正常的函数名来说要不合法
+    tmp->setName("main");       ///linux的c入口是main，windows的是_main，会通过crt0自动转到
     #endif // WINDOWS
     tmp->setBaseOffset(0);          ///为了变量（属于下一层）的偏移
     tmp->setLevel(0);               ///第零层
