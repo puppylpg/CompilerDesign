@@ -36,7 +36,7 @@ ifstream prefix("IO_intel_LINUX.asm");
 #endif // WINDOWS
 ofstream outfile("Assembly.asm");
 
-const char *reg[] = {
+string reg[] = {
     "eax",
     "ebx",
     "ecx",
@@ -51,6 +51,7 @@ x86_REGISTER reg0 = REG_EBX;        ///
 x86_REGISTER reg1 = REG_ECX;        ///
 x86_REGISTER reg2 = REG_EDX;        ///如果是数组，需要存下标，固定装入reg2
 x86_REGISTER reg3 = REG_ESI;        ///如果使用静态链，需要reg3临时存一下"ebp+偏移"所指向的基地址
+x86_REGISTER reg4 = REG_EDI;        ///如果访问的是PARA，且传引用，则第一遍先把其内容（数组项的地址）取到reg4
 
 void init()
 {
@@ -149,30 +150,70 @@ string findAddr(BaseItem *item)
     return addr;
 }
 
+bool findRealTarget(BaseItem *item)     ///将真正的目标放入reg4
+{
+    string addr = findAddr(item);
+    if(item->getType() == ItemType_PARA){
+        VarItem *vItem = (VarItem *)item;
+        if(vItem->getPassByAddr() == true){
+            genAssembly({MOV, reg[reg4], addr});    ///找到真正要读取的目标
+            return true;
+        }
+    }
+    return false;
+}
+
+/*
+做右值：
+如果读取的对象为PARA且passByAddr为true，则取两次，先取其值到reg4，再取[reg4]的值
+*/
 void memToReg(string op, x86_REGISTER objReg, BaseItem *item)     ///将变量移动到tmpReg
 {
     string addr = findAddr(item);
-    genAssembly({op, reg[objReg], addr});
+    if(findRealTarget(item)){
+        genAssembly({MOV, reg[objReg], "[" + reg[reg4] + "]"});
+    }
+    else{
+        genAssembly({MOV, reg[objReg], addr});
+    }
 }
 
-void regToMem(string op, BaseItem *item, x86_REGISTER srcReg)     ///将寄存器tmpReg移动到内存中
-{
-    string addr = findAddr(item);
-    genAssembly({op, addr, reg[srcReg]});
-}
-
-void constToMem(string op, BaseItem *item, string num)
-{
-    string addr = findAddr(item);
-    genAssembly({op, addr, num});
-}
-
+//这个函数涉及不到var型变量，自然无需讨论上述问题
 void constToReg(string op, x86_REGISTER objReg, string num)
 {
     genAssembly({op, reg[objReg], num});
 }
 
-void pushSL(Node *node)
+/*
+做左值：
+如果待写入的对象为PARA且passByAddr为true，则先取其值到reg4，在往[reg4]写。（regToMen仅仅是做左值的一种情况）
+*/
+void regToMem(string op, BaseItem *item, x86_REGISTER srcReg)     ///将寄存器tmpReg移动到内存中
+{
+    string addr = findAddr(item);
+    if(findRealTarget(item)){
+        genAssembly({MOV, "[" + reg[reg4] + "]", reg[srcReg]});
+    }
+    else{
+        genAssembly({op, addr, reg[srcReg]});
+    }
+}
+
+/*
+这也是var型变量做右值的情况，所以也要分情况讨论。
+*/
+void constToMem(string op, BaseItem *item, string num)
+{
+    string addr = findAddr(item);
+    if(findRealTarget(item)){
+        genAssembly({MOV, "[" + reg[reg4] + "]", num});
+    }
+    else{
+        genAssembly({op, addr, num});
+    }
+}
+
+void pushSL(Node *node)                 ///静态链：直接外层！！！
 {
     stringstream ss;
     ss << "[esp - " << "3 * " << SIZE << "]";
@@ -180,7 +221,7 @@ void pushSL(Node *node)
                                                         ///所以填静态链需要先跳过预留的返回地址和动态链的位置
     string SL;
 
-    if(node->getParent() == curNode){                   ///如果调用的函数是亲儿子，则静态链为本函数的ebp
+    if(node->getParent() == curNode){                   ///如果调用的函数是亲儿子，则直接外层就是自己
         SL = "ebp";
     }
 //    else if(curNode->getParent()->findItem(node->getName())){  ///如果调用的函数是亲兄弟，则静态链为本函数的静态链
@@ -205,7 +246,8 @@ void pushSL(Node *node)
     genAssembly({MOV, pos, SL});
 }
 
-string getConstant(BaseItem *item)
+//涉及到的是const型变量，而不是var型变量
+string getConstant(BaseItem *item)      ///无论int/char都返回数字的样子，最后解释成什么就按照什么输出
 {
     string obj;
 
@@ -310,7 +352,7 @@ void ret(Gimple *gim)     ///不止是一个ret，还要调整栈帧呢
 }
 
 //<read ch>
-void readInt(Gimple *gim)
+void readInt(Gimple *gim)           ///涉及var型做被写入者
 {
     BaseItem *name = gim->getOp1();
     ///寻找name在栈中的位置
@@ -320,7 +362,12 @@ void readInt(Gimple *gim)
     genAssembly({CALL, "readInt"});
     ///无须回收参数
     ///将函数的结果给到接收者
-    genAssembly({MOV, addr, "eax"});
+    if(findRealTarget(name)){
+        genAssembly({MOV, "[" + reg[reg4] + "]", "eax"});
+    }
+    else{
+        genAssembly({MOV, addr, "eax"});
+    }
 }
 
 void readChar(Gimple *gim)
@@ -333,7 +380,12 @@ void readChar(Gimple *gim)
     genAssembly({CALL, "readChar"});
     ///无须回收参数
     ///将函数的结果给到接收者
-    genAssembly({MOV, addr, "eax"});
+    if(findRealTarget(name)){
+        genAssembly({MOV, "[" + reg[reg4] + "]", "eax"});
+    }
+    else{
+        genAssembly({MOV, addr, "eax"});
+    }
 }
 
 //<write str>
@@ -374,7 +426,7 @@ call	printStr
     ///void 函数，无需将eax赋值给接收者
 }
 
-void writeInt(Gimple *gim)
+void writeInt(Gimple *gim)      ///涉及var型变量做被读取者，比如写的是name，而name是参数，是一个引用
 {
     BaseItem *integer = gim->getOp1();
     ///push str（这样的话函数内部就可以用到str了）
@@ -385,10 +437,15 @@ void writeInt(Gimple *gim)
         genAssembly({PUSH, obj});
     }
     else{                                           ///是变量，int
-        obj = findAddr(integer);
-        stringstream ss;
-        ss << "dword " << obj;
-        genAssembly({PUSH, ss.str()});
+        if(findRealTarget(integer)){
+            genAssembly({PUSH, "[" + reg[reg4] + "]"});
+        }
+        else{
+            obj = findAddr(integer);
+            stringstream ss;
+            ss << "dword " << obj;
+            genAssembly({PUSH, ss.str()});
+        }
     }
     ///调用函数
     genAssembly({CALL, "printInt"});
@@ -397,7 +454,7 @@ void writeInt(Gimple *gim)
     ///void 函数，无需将eax赋值给接收者
 }
 
-void writeChar(Gimple *gim)
+void writeChar(Gimple *gim)             ///findRealTarget
 {
     BaseItem *character = gim->getOp1();
     ///push str（这样的话函数内部就可以用到str了）
@@ -407,10 +464,15 @@ void writeChar(Gimple *gim)
         genAssembly({PUSH, obj});
     }
     else{
-        obj = findAddr(character);
-        stringstream ss;
-        ss << "dword " << obj;
-        genAssembly({PUSH, ss.str()});
+        if(findRealTarget(character)){
+            genAssembly({PUSH, "[" + reg[reg4] + "]"});
+        }
+        else{
+            obj = findAddr(character);
+            stringstream ss;
+            ss << "dword " << obj;
+            genAssembly({PUSH, ss.str()});
+        }
     }
     ///调用函数
     genAssembly({CALL, "printChar"});
@@ -568,7 +630,6 @@ void div(Gimple *gim)
     BaseItem *op2 = gim->getOp2();
     BaseItem *result = gim->getResult();
     string addr_op2;
-    string addr_result = findAddr(result);
 
     if(op1->getType() != ItemType_CONST){
         memToReg(MOV, REG_EAX, op1);
@@ -577,13 +638,18 @@ void div(Gimple *gim)
         string num = getConstant(op1);
         genAssembly({MOV, reg[REG_EAX], num});
     }
-    genAssembly({CDQ});
+    genAssembly({CDQ});                         ///对edx进行有符号拓展！！！！！
 
     if(op2->getType() != ItemType_CONST){
-        addr_op2 = findAddr(op2);
-        stringstream ss;
-        ss << "dword " << addr_op2;
-        genAssembly({IDIV, ss.str()});
+        if(findRealTarget(op2)){
+            genAssembly({IDIV, "[" + reg[reg4] + "]"});
+        }
+        else{
+            addr_op2 = findAddr(op2);
+            stringstream ss;
+            ss << "dword " << addr_op2;
+            genAssembly({IDIV, ss.str()});
+        }
     }
     else{
         addr_op2 = getConstant(op2);
@@ -591,7 +657,8 @@ void div(Gimple *gim)
         genAssembly({IDIV, "ecx"});
     }
 
-    genAssembly({MOV, addr_result, reg[REG_EAX]});
+    regToMem(MOV, result, REG_EAX);             ///必须用regToMem，因为它里面已经对var型变量处理过了，以防止是var型PARA的情况
+//    genAssembly({MOV, addr_result, reg[REG_EAX]});
 }
 
 //< >=, p, q, falseLabel>
@@ -645,14 +712,19 @@ void j_condition(Gimple *gim)
     }
 }
 
-void pushPara(Gimple *gim)
+void pushPara(Gimple *gim)                  ///压的实参可能是var型PARA
 {
     BaseItem *item = gim->getOp1();
     if(item->getType() != ItemType_CONST){
-        string addr = findAddr(item);
-        stringstream ss;
-        ss << "dword " << addr;
-        genAssembly({PUSH, ss.str()});
+        if(findRealTarget(item)){
+            genAssembly({PUSH, "[" + reg[reg4] + "]"});
+        }
+        else{
+            string addr = findAddr(item);
+            stringstream ss;
+            ss << "dword " << addr;
+            genAssembly({PUSH, ss.str()});
+        }
     }
     else{
         string num = getConstant(item);
@@ -660,13 +732,32 @@ void pushPara(Gimple *gim)
     }
 }
 
+/*
+对于一个是var型形参的函数：
+1.如果实参是普通变量，直接取址存进来；
+2.如果实参是PARA且非var型，当作普通变量对待，直接取址存进来；
+3.如果实参是PARA且为var型，说明此变量里面存的已经是地址了，则只需取其值存进来。
+*/
 void pushParaAddr(Gimple *gim)
 {
     BaseItem *item = gim->getOp1();
-    if(item->getName().find("_array") == string::npos){     ///普通变量传址
+    if(item->getName().find("_array") == string::npos){     ///非数组项传址
         string addr = findAddr(item);               ///找到变量地址
-        genAssembly({LEA, reg[REG_EAX], addr});     ///load地址到寄存器（如果不用lea而用mov，则是地址代表的数值）
-        genAssembly({PUSH, reg[REG_EAX]});          ///地址压栈
+        if(item->getType() == ItemType_PARA){           ///情况3
+            VarItem *vItem = (VarItem *)item;
+            if(vItem->getPassByAddr() == true){
+                genAssembly({MOV, reg[REG_EAX], addr});     ///这里反而还不能用memToReg，因为要的就是item存的值
+                genAssembly({PUSH, reg[REG_EAX]});
+            }
+            else{                                       ///情况2
+                genAssembly({LEA, reg[REG_EAX], addr});
+                genAssembly({PUSH, reg[REG_EAX]});          ///地址压栈
+            }
+        }
+        else{                                           ///情况1
+            genAssembly({LEA, reg[REG_EAX], addr});     ///load地址到寄存器（如果不用lea而用mov，则是地址代表的数值）
+            genAssembly({PUSH, reg[REG_EAX]});          ///地址压栈
+        }
     }
     else{                                                   ///数组项传地址
         string addr = findAddr(item);               ///找到数组项做递归下降分析出的临时变量，相信此时里面存的是数组项的地址
@@ -676,7 +767,7 @@ void pushParaAddr(Gimple *gim)
 }
 
 //<CALL, hehe, (result)> result <= hehe
-void call(Gimple *gim)
+void call(Gimple *gim)                      ///如果有返回值，有可能接受者是PARA引用
 {
     BaseItem *item = gim->getOp1();
     Node *node = (Node *)item;
@@ -702,6 +793,8 @@ void call(Gimple *gim)
         stringstream ss;
         ss << offset;
         genAssembly({MOV, reg[reg0], ss.str()}); ///从之前的返回值区域取出返回值
+
+        ///接收返回值者可能是引用，不过regToMem已经处理了
         regToMem(MOV, result, reg0);
     }
 }
