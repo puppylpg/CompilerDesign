@@ -97,30 +97,32 @@ string findAddr(BaseItem *item)
     if(item->getType() == ItemType_CONST){
         cout << "刘海博滚粗！常量在运行栈上找你妹啊！" << endl;
     }
-    int offset = item->getOffset() + 2 * SIZE;    //向上有retAddr/null，向下有prev ebp/retValue，所以加个2SIZE
+    int offset = item->getOffset() + 1 * SIZE;    //向上有retAddr/null，向下有prev ebp/retValue，所以加个2SIZE
     int objLevel = item->getLevel() - 1;
     int curLevel = curNode->getLevel();
     int offLevel = curLevel - objLevel;
 
-    if(item->getType() == ItemType_PARA){           //PARA向上寻址，而VAR/FUNCTION向下寻址
+    if(item->getType() == ItemType_PARA){           //PARA向上寻址，而VAR向下寻址
         offset *= -1;
     }
 
     stringstream ss;
     string addr;
-    if(offLevel == 0){                              ///TODO: ebp - -1 支持吗？
+    if(offLevel == 0){                              ///TODO: ebp - -1 支持吗？支持！
         if(item->getType() != ItemType_ARRAY){
             ss.str("");
+            offset = (item->getType() == ItemType_PARA) ? offset : (offset + SIZE);
             ss << "[ebp " << "-" << offset << "]";
             addr = ss.str();
         }
         else{
             ss.str("");
+            offset += SIZE;     ///局部变量，要多向下便宜四字节，因为新添了ret value在栈上
             ss << "[ebp - " << offset << "+" << reg[reg2] << " * " << SIZE << "]";
             addr = ss.str();
         }
     }
-    else{
+    else{                                           ///如果不在本层
         ss.str("");
         ss << "[ebp - " << SIZE << "]";
         genAssembly({MOV, reg[reg3], ss.str()});  ///mov reg3, [ebp - 4]
@@ -132,12 +134,14 @@ string findAddr(BaseItem *item)
         if(item->getType() != ItemType_ARRAY){
 //            addr = "[" + reg[reg3] + "-" + offset + "]";
             ss.str("");
+            offset = (item->getType() == ItemType_PARA) ? offset : (offset + SIZE);
             ss << "[" << reg[reg3] << " - " << offset << "]";
             addr = ss.str();
         }
         else{
 //            addr = "[" + reg[reg3] + "-" + offset + "+" + reg[reg2] * SIZE + "]";
             ss.str("");
+            offset += SIZE;     ///局部变量，要多向下偏移四字节，因为新添了ret value在栈上
             ss << "[" << reg[reg3] << " - " << offset << " + " << reg[reg2] << "*" << SIZE << "]";
             addr = ss.str();
         }

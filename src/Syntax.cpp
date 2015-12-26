@@ -43,9 +43,9 @@ BaseItem* factor();   //因子
 void realParameterTable(Node *func);   //实在参数表
 BaseItem* realParameter();    //实在参数
 void conditionStatement();   //条件语句
-void condition();    //条件
+BaseItem* condition();    //条件
 void statusStatement();  //情况语句
-void conditionTableElement(BaseItem *expState);    //情况表元素
+void conditionTableElement(BaseItem *expState, BaseItem *trueLabel);    //情况表元素
 void readStatement();
 void writeStatement();
 string _string(); //字符串
@@ -68,7 +68,7 @@ bool judgeIsChar()
     return false;
 }
 
-BaseItem *trueLabel, *falseLabel, *loopLabel, *endLabel;
+//BaseItem *trueLabel, *falseLabel;//, *loopLabel, *endLabel;
 BaseItem* genLabel(string s)                   ///生成的label并不加入符号表，没必要
 {
     static int i = 0;
@@ -1090,9 +1090,11 @@ BaseItem* realParameter()    //实在参数
 
 void conditionStatement()   //条件语句
 {
+    BaseItem *trueLabel, *falseLabel;
+
     if(symbol == "IF"){
         getToken();
-        condition();                            ///生成了falseLabel --> < >, p, q, falseLabel>
+        falseLabel = condition();                            ///生成了falseLabel --> < >, p, q, falseLabel>
         if(symbol != "THEN"){
             error(Then); //error:if后面缺少then
         }
@@ -1113,10 +1115,11 @@ void conditionStatement()   //条件语句
     printStatement("This is a conditionStatement statement!");
 }
 
-void condition()    //条件
+BaseItem *condition()    //条件
 {
     BaseItem *p, *q;
     MIDOp op;
+    BaseItem *falseLabel;
 
     p = expression();
     if(symbol != charSymb['<'] && symbol != "LEQ"
@@ -1150,11 +1153,14 @@ void condition()    //条件
     }
 
     printStatement("This is a condition statement!");
+
+    return falseLabel;
 }
 
 void statusStatement()  //情况语句
 {
     BaseItem *expState;                 ///case后的表达式
+    BaseItem *trueLabel;
 
     if(symbol == "CASE"){
         getToken();
@@ -1165,11 +1171,11 @@ void statusStatement()  //情况语句
         else{
             getToken();
             trueLabel = genLabel("tLabel");     ///case若正确，结束标签只需要是一个即可，所以提前申请这一个
-            conditionTableElement(expState);        ///开口，
+            conditionTableElement(expState, trueLabel);        ///开口，
             while(token == ";"){
                 getToken();
 
-                conditionTableElement(expState);
+                conditionTableElement(expState, trueLabel);
             }
             if(symbol != "END"){
                 error(End); //case语句缺少end
@@ -1184,7 +1190,7 @@ void statusStatement()  //情况语句
     printStatement("This is a statusStatement statement!");
 }
 
-void conditionTableElement(BaseItem *expState)    //情况表元素
+void conditionTableElement(BaseItem *expState, BaseItem *trueLabel)    //情况表元素
 {
     bool isChar;
     int num;
@@ -1193,7 +1199,7 @@ void conditionTableElement(BaseItem *expState)    //情况表元素
     string constName = getConstName(num, isChar);
     ConstItem *cItem = createConst(constName, num, isChar);
 
-    falseLabel = genLabel("fLabel");
+    BaseItem *falseLabel = genLabel("fLabel");
     enterGimList(MID_EQ, cItem, expState, falseLabel);
 
     if(token != ":"){
@@ -1367,6 +1373,8 @@ void forStatement() //for循环语句
     BaseItem *t1, *t2, *item;
     MIDOp op, selfOp;                       ///selfOp:+/-，代表自增/自减
 
+    BaseItem *loopLabel, *endLabel;
+
     if(symbol == "FOR"){
         getToken();
         string i = identifier();
@@ -1393,10 +1401,10 @@ void forStatement() //for循环语句
             t2 = expression();
             endLabel = genLabel("end");
             if(selfOp == MID_ADD){              ///生成跳转，如果起始变量大于结束变量，就跳走了
-                enterGimList(MID_GT, t1, t2, endLabel);
+                enterGimList(MID_LE, t1, t2, endLabel);
             }
             else{                               ///生成跳转，如果起始变量小于结束变量，就跳走了
-                enterGimList(MID_LT, t1, t2, endLabel);
+                enterGimList(MID_GE, t1, t2, endLabel);
             }
             ///pascal语法，一切正常，才赋值
             enterGimList(MID_ASSIGN, t1, NULL, item);
