@@ -494,7 +494,7 @@ void _assign(Gimple *gim)
             regToMem(op, result, reg1);         //再将寄存器reg1的值移到result
         }
         else{
-            genAssembly({MOV, "[ebp + 8]", reg[reg1]});   ///函数返回值需要存入特殊区域
+            genAssembly({MOV, "[ebp - 8]", reg[reg1]});   ///函数返回值需要存入特殊区域
         }
     }
     else{
@@ -506,7 +506,7 @@ void _assign(Gimple *gim)
             constToMem(op, result, ss.str());
         }
         else{
-            genAssembly({MOV, "[ebp + 8]", ss.str()});
+            genAssembly({MOV, "[ebp - 8]", ss.str()});
         }
     }
 }
@@ -717,7 +717,9 @@ void pushPara(Gimple *gim)                  ///压的实参可能是var型PARA
     BaseItem *item = gim->getOp1();
     if(item->getType() != ItemType_CONST){
         if(findRealTarget(item)){
-            genAssembly({PUSH, "[" + reg[reg4] + "]"});
+            stringstream ss;
+            ss << "dword " << "[" << reg[reg4] << "]";
+            genAssembly({PUSH, ss.str()});
         }
         else{
             string addr = findAddr(item);
@@ -792,6 +794,9 @@ void call(Gimple *gim)                      ///如果有返回值，有可能接
     if(result != NULL){                         ///如果有返回值，赋值
         stringstream ss;
         ss << offset;
+        string num = ss.str();
+        ss.str("");
+        ss << "[esp - " + num + "]";
         genAssembly({MOV, reg[reg0], ss.str()}); ///从之前的返回值区域取出返回值
 
         ///接收返回值者可能是引用，不过regToMem已经处理了

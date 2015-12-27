@@ -47,7 +47,8 @@ void error(Error id)
         "Error read object(not read into variable)",
         "The number of real parameters is not corrcet",
         "The type of the real para is not the same as formal para",
-        "Can't pass the address of a Const"
+        "Can't pass the address of a Const",
+        "Error occurs when pass by address: illegal way(such as pass the address of an expression or a function)"
     };
 
     numError++;

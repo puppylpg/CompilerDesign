@@ -1057,7 +1057,7 @@ void realParameterTable(Node *func)   //实在参数表
                 if(result[i]->getType() == ItemType_CONST){
                     error(Const_address);            ///常量不能传给引用
                 }
-                if((*p)[i]->getIsChar() != result[i]->getIsChar()){
+                else if((*p)[i]->getIsChar() != result[i]->getIsChar()){
                     error(Not_compatible_of_Para);  ///传址时实参形参类型(char/integer)不匹配
                 }
                 else{
@@ -1067,6 +1067,10 @@ void realParameterTable(Node *func)   //实在参数表
                     if(gim != NULL && gim->getOp() == MID_LW){
                         string tmpName = gim->getResult()->getName();
                         gim->getResult()->setName(tmpName + "_array");
+                    }
+                    else if(result[i]->getName().find("_t") != string::npos){   ///对于那些函数啦表达式啦统统不能传引用
+                        ///方法：凡是tmp变量（含有_t）都死，除非他是函数项lw到的临时变量，所以这个报错要放在这里
+                        error(Unsupported_address);
                     }
                     enterGimList(MID_PUSHPARAADDR, result[i], NULL, NULL);
                 }

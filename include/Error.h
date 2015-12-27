@@ -44,7 +44,8 @@ enum Error{
     Read_not_legal,
     Not_equal_of_Para,
     Not_compatible_of_Para,
-    Const_address
+    Const_address,
+    Unsupported_address
 };
 
 extern void error(Error id);
