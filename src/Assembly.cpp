@@ -30,7 +30,7 @@
 using namespace std;
 
 #ifdef WINDOWS
-ifstream prefix("IO_intel_WINDOWS.ams");
+ifstream prefix("IO_intel_WINDOWS.asm");
 #else
 ifstream prefix("IO_intel_LINUX.asm");
 #endif // WINDOWS
