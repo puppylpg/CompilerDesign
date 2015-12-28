@@ -4,7 +4,6 @@ var ch : char; top, length, i : integer; s : array [20] of char; stack : array [
 procedure getchar;
 begin
 	read(ch);
-	getchar
 end;
 
 procedure gets;

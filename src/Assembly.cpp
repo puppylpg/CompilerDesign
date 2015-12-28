@@ -224,10 +224,6 @@ void pushSL(Node *node)                 ///静态链：直接外层！！！
     if(node->getParent() == curNode){                   ///如果调用的函数是亲儿子，则直接外层就是自己
         SL = "ebp";
     }
-//    else if(curNode->getParent()->findItem(node->getName())){  ///如果调用的函数是亲兄弟，则静态链为本函数的静态链
-//        genAssembly({MOV, reg[reg0], "[ebp - 4]"});
-//        SL = reg[reg0];
-//    }
     else if(curNode->getLevel() >= node->getLevel()){   ///如果调用的函数是当前节点的祖先或兄弟或自己
         int curLevel = curNode->getLevel();
         int objLevel = node->getLevel() - 1;
@@ -438,7 +434,9 @@ void writeInt(Gimple *gim)      ///涉及var型变量做被读取者，比如写
     }
     else{                                           ///是变量，int
         if(findRealTarget(integer)){
-            genAssembly({PUSH, "[" + reg[reg4] + "]"});
+            stringstream ss;
+            ss << "dword " << "[" << reg[reg4] << "]";
+            genAssembly({PUSH, ss.str()});
         }
         else{
             obj = findAddr(integer);
@@ -749,22 +747,30 @@ void pushParaAddr(Gimple *gim)
             VarItem *vItem = (VarItem *)item;
             if(vItem->getPassByAddr() == true){
                 genAssembly({MOV, reg[REG_EAX], addr});     ///这里反而还不能用memToReg，因为要的就是item存的值
-                genAssembly({PUSH, reg[REG_EAX]});
+                stringstream ss;
+                ss << "dword " << "eax";
+                genAssembly({PUSH, ss.str()});
             }
             else{                                       ///情况2
                 genAssembly({LEA, reg[REG_EAX], addr});
-                genAssembly({PUSH, reg[REG_EAX]});          ///地址压栈
+                stringstream ss;
+                ss << "dword " << "eax";
+                genAssembly({PUSH, ss.str()});          ///地址压栈
             }
         }
         else{                                           ///情况1
             genAssembly({LEA, reg[REG_EAX], addr});     ///load地址到寄存器（如果不用lea而用mov，则是地址代表的数值）
-            genAssembly({PUSH, reg[REG_EAX]});          ///地址压栈
+            stringstream ss;
+            ss << "dword " << "eax";
+            genAssembly({PUSH, ss.str()});          ///地址压栈
         }
     }
     else{                                                   ///数组项传地址
         string addr = findAddr(item);               ///找到数组项做递归下降分析出的临时变量，相信此时里面存的是数组项的地址
         genAssembly({MOV, reg[REG_EAX], addr});     ///直接将临时变量所代表的数值（lw已经把数组项地址存为其值了）取出来即可
-        genAssembly({PUSH, reg[REG_EAX]});
+        stringstream ss;
+        ss << "dword " << "eax";
+        genAssembly({PUSH, ss.str()});
     }
 }
 
