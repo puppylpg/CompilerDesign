@@ -640,7 +640,9 @@ void div(Gimple *gim)
 
     if(op2->getType() != ItemType_CONST){
         if(findRealTarget(op2)){
-            genAssembly({IDIV, "[" + reg[reg4] + "]"});
+            stringstream ss;
+            ss << "dword " << "[" << reg[reg4] << "]";
+            genAssembly({IDIV, ss.str()});
         }
         else{
             addr_op2 = findAddr(op2);
