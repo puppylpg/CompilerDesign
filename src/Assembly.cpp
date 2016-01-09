@@ -93,6 +93,7 @@ void genAssembly(initializer_list<string> args)
     }
 }
 
+///这个名字取的不太好，实际上返回的不太是address，而是"[address]"
 string findAddr(BaseItem *item)
 {
     if(item->getType() == ItemType_CONST){
@@ -118,7 +119,7 @@ string findAddr(BaseItem *item)
         }
         else{
             ss.str("");
-            offset += SIZE;     ///局部变量，要多向下便宜四字节，因为新添了ret value在栈上
+            offset += SIZE;     ///局部变量，要多向下偏移四字节，因为新添了ret value在栈上
             ss << "[ebp - " << offset << "+" << reg[reg2] << " * " << SIZE << "]";
             addr = ss.str();
         }
