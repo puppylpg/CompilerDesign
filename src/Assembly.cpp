@@ -599,8 +599,8 @@ void add_sub_mult(Gimple *gim)
         memToReg(MOV, reg2, op2);
         string num = getConstant(op1);
         genAssembly({MOV, reg[reg1], num});         ///数字不能直接运算，必须放到寄存器里
-        genAssembly({op, reg[reg2], reg[reg1]});
-        regToMem(MOV, result, reg2);
+        genAssembly({op, reg[reg1], reg[reg2]});    ///神bug！！！一开始reg1和reg2写反了，下面是reg2给result复制，但问题是加法可以减法不行啊！服！
+        regToMem(MOV, result, reg1);
     }
     else if(op1->getType() != ItemType_CONST && op2->getType() == ItemType_CONST){
         memToReg(MOV, reg1, op1);
