@@ -58,7 +58,23 @@ gcc -o code code.o　-m32
 1. 编译。就像将c语言源代码test.c使用gcc命令编译成test.o一样，这一步将x86汇编指令源代码Assembly.asm使用nasm命令编译成目标代码，生成目标文件code.o（机器码），最后的`-F dwarf -g`是为了在用gdb调试机器码的时候能够直接显示汇编码，否则还要每次都将目标码反汇编看看目标码究竟在干什么；
 2. 链接。将目标代码（机器码，code.o）使用gcc（这里实际上要用gcc-multilib，32位gcc，因为我生成的是intel的x86汇编，而不是x64汇编）命令进行链接操作，指定`-m32`参数，链接到库，比如链接上printf等，生成的还是机器码。
 
-注：之前gcc最后用的是`-nostartfiles`参数，是跳过crt0（现已拓展为crt1.o/crti.o/crtn.o）直接进入_strat入口（此时跟节点的函数名要设置成_start），但是运行完会崩溃（估计是仅仅做了crt1.o做的启动工作，而没有调用crti.o进行初始化，和crtn.o进行结束），所以还是引入入口函数（windows是_main，linux是main），不加-nostartfiles参数，使之通过crt0自己跳转到入口main，因此此时根节点的函数名要设置成main（windows要设置成_main）。
+**注1**：之前gcc最后用的是`-nostartfiles`参数，是跳过crt0（现已拓展为crt1.o/crti.o/crtn.o）直接进入_strat入口（此时跟节点的函数名要设置成_start），但是运行完会崩溃（估计是仅仅做了crt1.o做的启动工作，而没有调用crti.o进行初始化，和crtn.o进行结束），所以还是引入入口函数（windows是_main，linux是main），不加-nostartfiles参数，使之通过crt0自己跳转到入口main，因此此时根节点的函数名要设置成main（windows要设置成_main）。
+```
+multilib/gcc-multilib 6.1.1-2 (multilib-devel)
+    The GNU Compiler Collection - C and C++ frontends for multilib
+multilib/gcc-libs-multilib 6.1.1-2
+    Runtime libraries shipped by GCC for multilib
+multilib/lib32-gcc-libs 6.1.1-2
+    Runtime libraries shipped by GCC (32-bit)
+    
+core/gcc 6.1.1-2 (base-devel)
+    The GNU Compiler Collection - C and C++ frontends
+core/gcc-libs 6.1.1-2 (base)
+    Runtime libraries shipped by GCC
+```
+
+**注2**：为了编译生成x86，此处的gcc是`multilib/gcc-multilib`，需要依赖`multilib/gcc-libs-multilib`（64位库）和`multilib/lib32-gcc-libs`（32位库），他们都在multilib库里。64位的gcc是`core/gcc`，其与`multilib/gcc-multilib`是冲突的，64位的gcc需要依赖64位的库，可以是刚刚的`multilib/gcc-libs-multilib`，也可以是`core/gcc-libs`，其与`multilib/gcc-libs-multilib`冲突。32位库`multilib/lib32-gcc-libs`被许多其他程序所依赖。
+
 
 ### Windows:
 ```
